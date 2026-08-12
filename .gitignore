@@ -42,4 +42,6 @@ yarn-error.log*
 # local preview process output
 /.dev-server.log
 /.dev-server-error.log
+/.static-dev.log
+/.static-dev-error.log
 *.tsbuildinfo

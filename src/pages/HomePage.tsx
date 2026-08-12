@@ -1,5 +1,3 @@
-import Image from "next/image";
-import Link from "next/link";
 import {
   Activity,
   ArrowRight,
@@ -18,9 +16,9 @@ import {
   TimerReset,
   WifiOff,
 } from "lucide-react";
-import { AppMark } from "./components/AppMark";
-import { SiteFooter } from "./components/SiteFooter";
-import { SiteHeader } from "./components/SiteHeader";
+import { AppMark } from "../components/AppMark";
+import { SiteFooter } from "../components/SiteFooter";
+import { SiteHeader } from "../components/SiteHeader";
 
 const breakTypes = [
   { name: "Blink", interval: "Every 5 min", icon: Eye, color: "mint" },
@@ -35,7 +33,7 @@ const privacyPoints = [
   { icon: LockKeyhole, title: "No surveillance", copy: "No screenshots, keys, tabs, or URLs." },
 ];
 
-export default function Home() {
+export function HomePage() {
   return (
     <main>
       <SiteHeader />
@@ -148,7 +146,7 @@ export default function Home() {
             </article>
             <article className="bento-card bento-card--wide bento-card--screen">
               <div className="card-copy"><span className="icon-chip icon-chip--coral"><MousePointer2 size={20} /></span><h3>There when you need it.<br />Gone when you don’t.</h3><p>Peeky lives in the notification area and stays out of your taskbar.</p></div>
-              <div className="screen-crop"><Image src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} /></div>
+              <div className="screen-crop"><img src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} /></div>
             </article>
           </div>
         </div>
@@ -161,7 +159,7 @@ export default function Home() {
             <span className="kicker kicker--light">Private means private</span>
             <h2>Your day belongs to you.</h2>
             <p>Peeky was built without an account system, analytics SDK, or cloud backend. Activity data stays in a local database on your Windows PC.</p>
-            <Link className="button button--light" href="/privacy">Read the privacy promise <ArrowRight size={16} /></Link>
+            <a className="button button--light" href="/privacy/">Read the privacy promise <ArrowRight size={16} /></a>
           </div>
           <div className="privacy-list">
             {privacyPoints.map(({ icon: Icon, title, copy }) => (
@@ -181,11 +179,11 @@ export default function Home() {
           <div className="tour-grid">
             <article className="tour-card tour-card--dashboard">
               <div><span>01 / JOURNAL</span><h3>See the shape of a session</h3><p>Review meaningful activity without reconstructing every minute.</p></div>
-              <div className="tour-image"><Image src="/product/dashboard.png" alt="Peeky local activity dashboard" width={1180} height={780} /></div>
+              <div className="tour-image"><img src="/product/dashboard.png" alt="Peeky local activity dashboard" width={1180} height={780} /></div>
             </article>
             <article className="tour-card tour-card--settings">
               <div><span>02 / CONTROL</span><h3>Make every break yours</h3><p>Four reminders. Fully adjustable.</p></div>
-              <div className="tour-image"><Image src="/product/settings.png" alt="Peeky break rhythm settings" width={1224} height={918} /></div>
+              <div className="tour-image"><img src="/product/settings.png" alt="Peeky break rhythm settings" width={1224} height={918} /></div>
             </article>
           </div>
         </div>
@@ -201,7 +199,7 @@ export default function Home() {
           <p>Free for Windows 10 and 11. No account. No cloud. No nonsense.</p>
           <div className="hero-actions hero-actions--center">
             <a className="button button--dark button--large" href="/downloads/Peeky-Setup-x64.exe" download><Download size={19} /> Download Peeky v1.2.0</a>
-            <Link className="button button--ghost" href="/download">Other download options</Link>
+            <a className="button button--ghost" href="/download/">Other download options</a>
           </div>
           <small>6.5 MB installer · SHA-256 checksum available</small>
         </div>

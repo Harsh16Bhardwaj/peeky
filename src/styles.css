@@ -1,6 +1,6 @@
-@import "tailwindcss";
-
 :root {
+  --font-geist-sans: "Segoe UI Variable";
+  --font-geist-mono: "Cascadia Mono";
   --paper: #f5f5ef;
   --paper-2: #ecefe7;
   --panel: #ffffff;

@@ -1,15 +1,8 @@
-import type { Metadata } from "next";
-import Link from "next/link";
 import { Check, Download, FileArchive, FileCheck2, MonitorDown, PackageOpen, ShieldCheck } from "lucide-react";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
 
-export const metadata: Metadata = {
-  title: "Download Peeky for Windows",
-  description: "Download the Peeky installer or portable edition for Windows 10 and 11.",
-};
-
-export default function DownloadPage() {
+export function DownloadPage() {
   return (
     <main className="subpage">
       <SiteHeader />
@@ -56,7 +49,7 @@ export default function DownloadPage() {
       <section className="compatibility-strip">
         <div className="shell"><span><Check size={16} /> Windows 10 or 11</span><span><Check size={16} /> 64-bit</span><span><Check size={16} /> No account</span><span><Check size={16} /> Works offline</span></div>
       </section>
-      <section className="download-help"><div className="shell"><p>Want to know exactly what Peeky records?</p><Link className="text-link" href="/privacy">Read the privacy promise →</Link></div></section>
+      <section className="download-help"><div className="shell"><p>Want to know exactly what Peeky records?</p><a className="text-link" href="/privacy/">Read the privacy promise →</a></div></section>
       <SiteFooter />
     </main>
   );

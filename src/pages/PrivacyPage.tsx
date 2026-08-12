@@ -1,14 +1,6 @@
-import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { AppWindow, Check, CloudOff, Database, EyeOff, KeyboardOff, LockKeyhole, ScanSearch, WifiOff, X } from "lucide-react";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
-
-export const metadata: Metadata = {
-  title: "Privacy Promise — Peeky",
-  description: "Peeky keeps settings, break state, and optional activity data on your Windows PC.",
-};
 
 const never = [
   { icon: EyeOff, text: "No screenshots or screen recording" },
@@ -17,7 +9,7 @@ const never = [
   { icon: WifiOff, text: "No telemetry, analytics, or network API" },
 ];
 
-export default function PrivacyPage() {
+export function PrivacyPage() {
   return (
     <main className="subpage">
       <SiteHeader />
@@ -52,7 +44,7 @@ export default function PrivacyPage() {
           <div className="section-heading"><span className="kicker">Where your data goes</span><h2>Exactly one place.</h2></div>
           <div className="data-diagram">
             <div><AppWindow size={26} /><strong>Your Windows apps</strong></div><span>→</span>
-            <div className="data-diagram__peeky"><Image src="/peeky-icon.png" alt="" width={38} height={38} /><strong>Peeky</strong></div><span>→</span>
+            <div className="data-diagram__peeky"><img src="/peeky-icon.png" alt="" width={38} height={38} /><strong>Peeky</strong></div><span>→</span>
             <div><Database size={26} /><strong>Your local PC</strong></div><span className="blocked-arrow">×</span>
             <div className="data-diagram__cloud"><CloudOff size={26} /><strong>The cloud</strong></div>
           </div>
@@ -64,7 +56,7 @@ export default function PrivacyPage() {
           <div className="control-list"><span><Check size={17} /> Tracking can be disabled</span><span><Check size={17} /> Local data can be cleared</span><span><Check size={17} /> No signup required</span><span><Check size={17} /> Works without internet</span></div>
         </div>
       </section>
-      <section className="download-help download-help--privacy"><div className="shell"><p>Ready for calmer screen time?</p><Link className="button button--dark" href="/download">Download Peeky</Link></div></section>
+      <section className="download-help download-help--privacy"><div className="shell"><p>Ready for calmer screen time?</p><a className="button button--dark" href="/download/">Download Peeky</a></div></section>
       <SiteFooter />
     </main>
   );

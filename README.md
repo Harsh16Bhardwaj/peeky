@@ -1,26 +1,30 @@
 # Peeky product site
 
-This folder is the standalone, deployable product website for Peeky. It is intentionally separate from the Windows desktop application one directory above.
+A plain static Vite + React website for Peeky. It has no database, schema, server runtime, authentication, cloud SDK, or hosting-provider integration.
 
-## Structure
+## Folder structure
 
-- `app/` - website routes, shared components, metadata, and styling
-- `public/product/` - approved product screenshots used by the website
-- `public/downloads/` - public release artifacts and SHA-256 checksums
-- `public/og.png` - social sharing artwork
-- `.openai/hosting.json` - deployment configuration
+- `src/` - site pages, shared components, and styling
+- `download/index.html` - standalone download-page entry
+- `privacy/index.html` - standalone privacy-page entry
+- `public/product/` - approved product screenshots
+- `public/downloads/` - installer, portable ZIP, and SHA-256 checksums
+- `public/og.png` - social sharing image
+- `dist/` - complete self-hostable output created by the build
 
-The primary download points to `public/downloads/Peeky-Setup-x64.exe`. The portable ZIP and checksums are available from `/download`.
-
-## Local development
+## Run locally
 
 ```powershell
 npm.cmd install
 npm.cmd run dev
 ```
 
-## Production build
+## Build for self-hosting
 
 ```powershell
 npm.cmd run build
 ```
+
+Upload the **contents** of `dist/` to the public/root folder of any static host: Apache, Nginx, Cloudflare Pages, GitHub Pages, Netlify, Vercel static hosting, S3, or a basic cPanel host. No Node process is needed after the build.
+
+The primary installer URL is `/downloads/Peeky-Setup-x64.exe`. Replace the files in `public/downloads/` and rebuild whenever shipping a new desktop release.
