@@ -2,19 +2,32 @@ import {
   Activity,
   ArrowRight,
   BarChart3,
+  BellRing,
+  CalendarClock,
   Check,
   CloudOff,
+  Cpu,
+  Database,
   Download,
   Eye,
+  Focus,
   Footprints,
+  Gauge,
   HeartPulse,
+  Laptop,
+  Layers3,
   LockKeyhole,
+  MoonStar,
   MousePointer2,
+  Pause,
+  Play,
   Settings2,
   ShieldCheck,
   Sparkles,
   TimerReset,
+  Volume2,
   WifiOff,
+  Zap,
 } from "lucide-react";
 import { AppMark } from "../components/AppMark";
 import { SiteFooter } from "../components/SiteFooter";
@@ -31,6 +44,26 @@ const privacyPoints = [
   { icon: CloudOff, title: "No cloud", copy: "Your data never leaves your PC." },
   { icon: WifiOff, title: "No account", copy: "Install it. Open it. That’s it." },
   { icon: LockKeyhole, title: "No surveillance", copy: "No screenshots, keys, tabs, or URLs." },
+];
+
+const featureDetails = [
+  { icon: Gauge, title: "Active-time aware", copy: "Timers move with real computer use and pause naturally while you’re away.", tone: "mint" },
+  { icon: CalendarClock, title: "Active hours", copy: "Keep reminders inside the hours you actually want Peeky protecting your focus.", tone: "sky" },
+  { icon: Volume2, title: "Quiet by choice", copy: "Shape the interruption with configurable sounds, overlays, and durations.", tone: "coral" },
+  { icon: Laptop, title: "Tray native", copy: "Close the window and Peeky keeps working quietly from the notification area.", tone: "sun" },
+  { icon: Database, title: "Local journal", copy: "Optional foreground-app context is stored in a readable database on your own PC.", tone: "violet" },
+  { icon: Layers3, title: "Two-hour sessions", copy: "Long workdays become smaller chapters that are much easier to understand.", tone: "mint" },
+  { icon: Cpu, title: "Lightweight", copy: "A focused Windows utility—not a browser dashboard that needs to stay open.", tone: "sky" },
+  { icon: MoonStar, title: "Starts quietly", copy: "Launch with Windows and let the break rhythm take care of itself.", tone: "coral" },
+];
+
+const faqs = [
+  ["Does Peeky work offline?", "Yes. Break scheduling, settings, and the optional activity journal all work locally without an account or network service."],
+  ["Can I use breaks without activity tracking?", "Absolutely. The activity journal is optional; the break companion works on its own."],
+  ["What does activity tracking actually see?", "One foreground application name at a time. Peeky does not inspect browser tabs, window titles, URLs, page content, screenshots, or keystrokes."],
+  ["What happens when I walk away?", "Active computer time pauses while you are away, so you do not return to a stack of stale reminders."],
+  ["Can I change the four break rhythms?", "Yes. Each reminder can be enabled, disabled, and adjusted with its own interval and duration."],
+  ["Installer or portable?", "Use the installer for the normal Start Menu and startup experience. Choose portable when you want to unzip and run Peeky without installation."],
 ];
 
 export function HomePage() {
@@ -97,7 +130,20 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="section section--intro" id="how-it-works">
+      <section className="product-signal" aria-label="Peeky product highlights">
+        <div className="shell product-signal__inner">
+          <div><span className="signal-icon"><Zap size={17} /></span><strong>Active time</strong><small>Not wall-clock nagging</small></div>
+          <i />
+          <div><span className="signal-icon"><ShieldCheck size={17} /></span><strong>100% local</strong><small>No account or cloud</small></div>
+          <i />
+          <div><span className="signal-icon"><BellRing size={17} /></span><strong>Four rhythms</strong><small>Eyes, posture, movement</small></div>
+          <i />
+          <div><span className="signal-icon"><Laptop size={17} /></span><strong>Windows native</strong><small>Quiet in your tray</small></div>
+        </div>
+      </section>
+
+      <section className="section section--intro section--numbered" id="how-it-works" data-reveal>
+        <span className="section-number" aria-hidden="true">01 / RHYTHM</span>
         <div className="shell">
           <div className="section-heading section-heading--center">
             <span className="kicker">A better screen rhythm</span>
@@ -117,7 +163,9 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="section" id="features">
+      <section className="section feature-section section--numbered" id="features" data-reveal>
+        <span className="section-number" aria-hidden="true">02 / SYSTEM</span>
+        <div className="section-grid-lines" aria-hidden="true" />
         <div className="shell">
           <div className="section-heading split-heading">
             <div><span className="kicker">Thoughtful by default</span><h2>It does less.<br />On purpose.</h2></div>
@@ -148,11 +196,82 @@ export function HomePage() {
               <div className="card-copy"><span className="icon-chip icon-chip--coral"><MousePointer2 size={20} /></span><h3>There when you need it.<br />Gone when you don’t.</h3><p>Peeky lives in the notification area and stays out of your taskbar.</p></div>
               <div className="screen-crop"><img src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} /></div>
             </article>
+            <article className="bento-card bento-card--overlay">
+              <div className="card-copy"><span className="icon-chip icon-chip--sky"><Focus size={20} /></span><h3>A break that feels like a break</h3><p>Full-screen moments use clear language, one simple action, and room to breathe.</p></div>
+              <div className="mini-overlay">
+                <div className="mini-overlay__pulse"><Eye size={30} /></div>
+                <span>LOOK AWAY</span>
+                <strong>Find the farthest<br />point you can see.</strong>
+                <small>10 seconds</small>
+              </div>
+            </article>
+            <article className="bento-card bento-card--local">
+              <div className="card-copy"><span className="icon-chip icon-chip--mint"><CloudOff size={20} /></span><h3>No service to trust</h3><p>Peeky has no backend. Your settings, break state, and journal stay with your Windows user.</p></div>
+              <div className="local-orbit" aria-hidden="true">
+                <span className="local-orbit__ring local-orbit__ring--one" />
+                <span className="local-orbit__ring local-orbit__ring--two" />
+                <div><AppMark size="medium" /><small>YOUR PC</small></div>
+                <i className="local-dot local-dot--one" /><i className="local-dot local-dot--two" /><i className="local-dot local-dot--three" />
+              </div>
+            </article>
+          </div>
+
+          <div className="feature-ledger" data-reveal>
+            <div className="feature-ledger__intro"><span className="kicker">The details matter</span><h3>Everything a calm companion should remember.</h3><p>Useful depth, without the software-suite bloat.</p></div>
+            <div className="feature-ledger__grid">
+              {featureDetails.map(({ icon: Icon, title, copy, tone }, index) => (
+                <article className={`feature-detail feature-detail--${tone}`} key={title}>
+                  <span className="feature-detail__number">{String(index + 1).padStart(2, "0")}</span>
+                  <Icon size={21} />
+                  <h4>{title}</h4>
+                  <p>{copy}</p>
+                  <span className="feature-detail__line" />
+                </article>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      <section className="privacy-band" id="privacy">
+      <section className="experience-section section--numbered" data-reveal>
+        <span className="section-number section-number--dark" aria-hidden="true">03 / EXPERIENCE</span>
+        <div className="shell experience-grid">
+          <div className="experience-copy">
+            <span className="kicker kicker--light">Calm, not clinical</span>
+            <h2>A reset screen<br />with a pulse.</h2>
+            <p>When a break arrives, Peeky changes the pace instead of adding more noise. One cue. One countdown. One useful moment away from the work.</p>
+            <div className="experience-points">
+              <span><Check size={16} /> Clear, glanceable instruction</span>
+              <span><Check size={16} /> Pause or skip when life happens</span>
+              <span><Check size={16} /> Respects reduced-motion settings</span>
+            </div>
+          </div>
+          <div className="overlay-demo">
+            <div className="overlay-demo__top"><div className="mini-brand"><AppMark size="small" /><strong>Peeky</strong></div><span>LOOK AWAY BREAK</span></div>
+            <div className="overlay-demo__center">
+              <div className="overlay-demo__orbit"><span /><span /><div><Eye size={42} /></div></div>
+              <small>LET YOUR FOCUS SETTLE</small>
+              <h3>Look beyond<br />the screen.</h3>
+              <p>Find the farthest point you can see.</p>
+              <div className="overlay-countdown"><b>08</b><span>seconds</span></div>
+            </div>
+            <div className="overlay-demo__bottom"><span><Pause size={15} /> Pause</span><span><Play size={15} /> Skip this one</span></div>
+            <div className="demo-callout demo-callout--one"><span>01</span> Soft pulse</div>
+            <div className="demo-callout demo-callout--two"><span>02</span> One decision</div>
+          </div>
+        </div>
+        <div className="shell workday-flow" aria-label="A typical Peeky work rhythm">
+          <div className="workday-flow__track"><i /><b /></div>
+          <span><strong>09:00</strong> Focus begins</span>
+          <span><strong>09:05</strong> Blink</span>
+          <span><strong>09:10</strong> Look away</span>
+          <span><strong>09:30</strong> Posture</span>
+          <span><strong>09:45</strong> Walk away</span>
+        </div>
+      </section>
+
+      <section className="privacy-band section--numbered" id="privacy" data-reveal>
+        <span className="section-number section-number--dark" aria-hidden="true">04 / PRIVACY</span>
         <div className="privacy-noise" />
         <div className="shell privacy-grid">
           <div className="privacy-copy">
@@ -169,7 +288,8 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="section product-tour" id="screens">
+      <section className="section product-tour section--numbered" id="screens" data-reveal>
+        <span className="section-number" aria-hidden="true">05 / INSIDE</span>
         <div className="shell">
           <div className="section-heading section-heading--center">
             <span className="kicker">Made for real workdays</span>
@@ -189,7 +309,22 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="download-cta" id="download">
+      <section className="section faq-section section--numbered" data-reveal>
+        <span className="section-number" aria-hidden="true">06 / QUESTIONS</span>
+        <div className="shell faq-layout">
+          <div className="faq-heading"><span className="kicker">Before you install</span><h2>The useful answers.</h2><p>No mystery permissions, subscription catches, or account setup waiting on the other side.</p><div className="faq-stamp"><AppMark size="medium" /><span><strong>PEEKY 1.2.0</strong><small>Windows 10/11 · x64</small></span></div></div>
+          <div className="faq-list">
+            {faqs.map(([question, answer], index) => (
+              <details key={question} open={index === 0}>
+                <summary><span>{String(index + 1).padStart(2, "0")}</span>{question}<i>+</i></summary>
+                <p>{answer}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="download-cta" id="download" data-reveal>
         <div className="shell download-cta__inner">
           <div className="download-spark download-spark--one">✦</div>
           <div className="download-spark download-spark--two">✦</div>
