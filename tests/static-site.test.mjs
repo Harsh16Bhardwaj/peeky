@@ -13,7 +13,7 @@ test("builds all three static pages", async () => {
 
   assert.match(home, /Peeky - A calmer way to use your screen/);
   assert.match(download, /Download Peeky for Windows/);
-  assert.match(privacy, /Privacy Promise - Peeky/);
+  assert.match(privacy, /Privacy Policy - Peeky/);
 });
 
 test("copies release artifacts into the self-hostable build", async () => {
@@ -32,6 +32,7 @@ test("ships the complete product story in the client bundle", async () => {
   assert.ok(script, "expected a built JavaScript bundle");
   const bundle = await readFile(new URL(`dist/assets/${script}`, root), "utf8");
   assert.match(bundle, /Everything a calm companion should remember/);
-  assert.match(bundle, /A reset screen/);
+  assert.match(bundle, /Know what to do/);
   assert.match(bundle, /Does Peeky work offline/);
+  assert.match(bundle, /What Peeky can store/);
 });

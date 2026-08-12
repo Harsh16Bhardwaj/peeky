@@ -6,7 +6,6 @@ import {
   CalendarClock,
   Check,
   CloudOff,
-  Cpu,
   Database,
   Download,
   Eye,
@@ -16,8 +15,6 @@ import {
   HeartPulse,
   Laptop,
   Layers3,
-  LockKeyhole,
-  MoonStar,
   MousePointer2,
   Pause,
   Play,
@@ -26,7 +23,6 @@ import {
   Sparkles,
   TimerReset,
   Volume2,
-  WifiOff,
   Zap,
 } from "lucide-react";
 import { AppMark } from "../components/AppMark";
@@ -40,12 +36,6 @@ const breakTypes = [
   { name: "Walk away", interval: "Every 45 min", icon: Footprints, color: "sun" },
 ];
 
-const privacyPoints = [
-  { icon: CloudOff, title: "No cloud", copy: "Your data never leaves your PC." },
-  { icon: WifiOff, title: "No account", copy: "Install it. Open it. That’s it." },
-  { icon: LockKeyhole, title: "No surveillance", copy: "No screenshots, keys, tabs, or URLs." },
-];
-
 const featureDetails = [
   { icon: Gauge, title: "Active-time aware", copy: "Timers move with real computer use and pause naturally while you’re away.", tone: "mint" },
   { icon: CalendarClock, title: "Active hours", copy: "Keep reminders inside the hours you actually want Peeky protecting your focus.", tone: "sky" },
@@ -53,8 +43,6 @@ const featureDetails = [
   { icon: Laptop, title: "Tray native", copy: "Close the window and Peeky keeps working quietly from the notification area.", tone: "sun" },
   { icon: Database, title: "Local journal", copy: "Optional foreground-app context is stored in a readable database on your own PC.", tone: "violet" },
   { icon: Layers3, title: "Two-hour sessions", copy: "Long workdays become smaller chapters that are much easier to understand.", tone: "mint" },
-  { icon: Cpu, title: "Lightweight", copy: "A focused Windows utility—not a browser dashboard that needs to stay open.", tone: "sky" },
-  { icon: MoonStar, title: "Starts quietly", copy: "Launch with Windows and let the break rhythm take care of itself.", tone: "coral" },
 ];
 
 const faqs = [
@@ -126,7 +114,13 @@ export function HomePage() {
           </div>
         </div>
         <div className="hero-ticker" aria-hidden="true">
-          <div>BLINK <span>✦</span> BREATHE <span>✦</span> LOOK AWAY <span>✦</span> RESET <span>✦</span> MOVE <span>✦</span> BLINK <span>✦</span> BREATHE <span>✦</span> LOOK AWAY <span>✦</span></div>
+          <div className="hero-ticker__track">
+            {[0, 1].map((copy) => (
+              <div className="hero-ticker__group" key={copy}>
+                <b>BLINK</b><span>✦</span><b>BREATHE</b><span>✦</span><b>LOOK FAR</b><span>✦</span><b>UNCLENCH</b><span>✦</span><b>ROLL SHOULDERS</b><span>✦</span><b>STAND</b><span>✦</span><b>WALK</b><span>✦</span><b>RESET</b><span>✦</span><b>RETURN</b><span>✦</span>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -237,27 +231,27 @@ export function HomePage() {
         <span className="section-number section-number--dark" aria-hidden="true">03 / EXPERIENCE</span>
         <div className="shell experience-grid">
           <div className="experience-copy">
-            <span className="kicker kicker--light">Calm, not clinical</span>
-            <h2>A reset screen<br />with a pulse.</h2>
-            <p>When a break arrives, Peeky changes the pace instead of adding more noise. One cue. One countdown. One useful moment away from the work.</p>
+            <span className="kicker kicker--light">A clear interruption</span>
+            <h2>Know what to do.<br />Know when it ends.</h2>
+            <p>Peeky gives each break one physical action and a visible finish line. The expanding ring cues you to move your focus off-screen; the countdown tells you exactly when to return.</p>
             <div className="experience-points">
-              <span><Check size={16} /> Clear, glanceable instruction</span>
+              <span><Check size={16} /> One action, written plainly</span>
+              <span><Check size={16} /> Motion tied to the break duration</span>
               <span><Check size={16} /> Pause or skip when life happens</span>
-              <span><Check size={16} /> Respects reduced-motion settings</span>
             </div>
           </div>
           <div className="overlay-demo">
             <div className="overlay-demo__top"><div className="mini-brand"><AppMark size="small" /><strong>Peeky</strong></div><span>LOOK AWAY BREAK</span></div>
             <div className="overlay-demo__center">
-              <div className="overlay-demo__orbit"><span /><span /><div><Eye size={42} /></div></div>
-              <small>LET YOUR FOCUS SETTLE</small>
+              <div className="overlay-demo__orbit"><span className="countdown-arc" /><span className="focus-wave" /><div><Eye size={42} /></div></div>
+              <small>FOLLOW THE RING OUTWARD</small>
               <h3>Look beyond<br />the screen.</h3>
               <p>Find the farthest point you can see.</p>
               <div className="overlay-countdown"><b>08</b><span>seconds</span></div>
             </div>
             <div className="overlay-demo__bottom"><span><Pause size={15} /> Pause</span><span><Play size={15} /> Skip this one</span></div>
-            <div className="demo-callout demo-callout--one"><span>01</span> Soft pulse</div>
-            <div className="demo-callout demo-callout--two"><span>02</span> One decision</div>
+            <div className="demo-callout demo-callout--one"><span>01</span> Visual eye cue</div>
+            <div className="demo-callout demo-callout--two"><span>02</span> Visible finish</div>
           </div>
         </div>
         <div className="shell workday-flow" aria-label="A typical Peeky work rhythm">
@@ -275,15 +269,20 @@ export function HomePage() {
         <div className="privacy-noise" />
         <div className="shell privacy-grid">
           <div className="privacy-copy">
-            <span className="kicker kicker--light">Private means private</span>
-            <h2>Your day belongs to you.</h2>
-            <p>Peeky was built without an account system, analytics SDK, or cloud backend. Activity data stays in a local database on your Windows PC.</p>
+            <span className="kicker kicker--light">A deliberately small data footprint</span>
+            <h2>Peeky records less.<br />On purpose.</h2>
+            <p>The optional journal needs only an application name and time range. It never reads what is inside the app you are using.</p>
+            <div className="privacy-stats"><span><strong>0</strong> accounts</span><span><strong>0</strong> uploads</span><span><strong>1</strong> local database</span></div>
             <a className="button button--light" href="/privacy/">Read the privacy promise <ArrowRight size={16} /></a>
           </div>
-          <div className="privacy-list">
-            {privacyPoints.map(({ icon: Icon, title, copy }) => (
-              <article key={title}><span><Icon size={22} /></span><div><h3>{title}</h3><p>{copy}</p></div><Check size={18} /></article>
-            ))}
+          <div className="privacy-receipt">
+            <div className="privacy-receipt__head"><span>LOCAL ACTIVITY EVENT</span><b>09:42:18</b></div>
+            <div className="privacy-receipt__event"><AppMark size="small" /><div><strong>Code.exe</strong><small>Foreground application · Productive</small></div><span>LOCAL</span></div>
+            <div className="privacy-receipt__rule"><span>Stored</span><strong>Application name + timestamps</strong><Check size={16} /></div>
+            <div className="privacy-receipt__rule is-blocked"><span>Not read</span><strong>Window title or document</strong><i>—</i></div>
+            <div className="privacy-receipt__rule is-blocked"><span>Not read</span><strong>Browser URL or tab</strong><i>—</i></div>
+            <div className="privacy-receipt__rule is-blocked"><span>Not read</span><strong>Keystrokes or screenshots</strong><i>—</i></div>
+            <div className="privacy-receipt__foot"><CloudOff size={15} /> No network destination exists</div>
           </div>
         </div>
       </section>
