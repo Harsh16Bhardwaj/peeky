@@ -41,3 +41,16 @@ test("ships the complete product story in the client bundle", async () => {
   assert.match(bundle, /Does Peeky work offline/);
   assert.match(bundle, /What Peeky can store/);
 });
+
+test("mounts reveal motion with the lazy page and fails open", async () => {
+  const [entry, motion, styles] = await Promise.all([
+    readFile(new URL("src/main.tsx", root), "utf8"),
+    readFile(new URL("src/components/SiteMotion.tsx", root), "utf8"),
+    readFile(new URL("src/styles.css", root), "utf8"),
+  ]);
+
+  assert.match(entry, /<Suspense[^>]*>[\s\S]*<SiteMotion \/>[\s\S]*<Page \/>[\s\S]*<\/Suspense>/);
+  assert.match(motion, /classList\.add\("motion-ready"\)/);
+  assert.match(styles, /\.motion-ready \[data-reveal\] \{ opacity: 0/);
+  assert.doesNotMatch(styles, /(?:^|\n)\[data-reveal\] \{ opacity: 0/);
+});

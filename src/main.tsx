@@ -12,7 +12,9 @@ const Page = route === "/download"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <SiteMotion />
-    <Suspense fallback={null}><Page /></Suspense>
+    <Suspense fallback={null}>
+      <SiteMotion />
+      <Page />
+    </Suspense>
   </StrictMode>,
 );

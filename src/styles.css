@@ -782,12 +782,12 @@ main, .subpage { position: relative; z-index: 1; }
 .policy-download strong { font-size: 13px; }
 .policy-download small { margin-top: 3px; color: var(--muted); font-size: 9px; }
 
-[data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .75s ease, transform .75s cubic-bezier(.2,.75,.2,1); }
-[data-reveal].is-visible { opacity: 1; transform: translateY(0); }
-[data-reveal] [data-motion-item] { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity .7s ease, transform .85s cubic-bezier(.16,1,.3,1); transition-delay: calc(var(--motion-index, 0) * 65ms + 90ms); }
-[data-reveal].is-visible [data-motion-item] { opacity: 1; transform: translateY(0) scale(1); }
-[data-reveal-item] { opacity: 0; transform: translateY(24px) scale(.985); transition: opacity .8s ease .12s, transform .9s cubic-bezier(.16,1,.3,1) .12s; }
-[data-reveal].is-visible [data-reveal-item] { opacity: 1; transform: translateY(0) scale(1); }
+.motion-ready [data-reveal] { opacity: 0; transform: translateY(26px); transition: opacity .75s ease, transform .75s cubic-bezier(.2,.75,.2,1); }
+.motion-ready [data-reveal].is-visible { opacity: 1; transform: translateY(0); }
+.motion-ready [data-reveal] [data-motion-item] { opacity: 0; transform: translateY(22px) scale(.985); transition: opacity .7s ease, transform .85s cubic-bezier(.16,1,.3,1); transition-delay: calc(var(--motion-index, 0) * 65ms + 90ms); }
+.motion-ready [data-reveal].is-visible [data-motion-item] { opacity: 1; transform: translateY(0) scale(1); }
+.motion-ready [data-reveal-item] { opacity: 0; transform: translateY(24px) scale(.985); transition: opacity .8s ease .12s, transform .9s cubic-bezier(.16,1,.3,1) .12s; }
+.motion-ready [data-reveal].is-visible [data-reveal-item] { opacity: 1; transform: translateY(0) scale(1); }
 @keyframes livePulse { 0%,100% { box-shadow: 0 0 0 4px rgba(49,198,154,.13); } 50% { box-shadow: 0 0 0 8px rgba(49,198,154,.02); } }
 @keyframes gentleFloat { 0%,100% { transform: translateY(0) rotate(1.8deg); } 50% { transform: translateY(-10px) rotate(1.2deg); } }
 @keyframes ringPulse { 0% { opacity: .8; transform: scale(.86); } 70%,100% { opacity: 0; transform: scale(1.06); } }
