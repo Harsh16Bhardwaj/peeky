@@ -1,12 +1,18 @@
-import { StrictMode } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
-import { DownloadPage } from "./pages/DownloadPage";
-import { HomePage } from "./pages/HomePage";
-import { PrivacyPage } from "./pages/PrivacyPage";
 import { SiteMotion } from "./components/SiteMotion";
 import "./styles.css";
 
 const route = window.location.pathname.replace(/\/+$/, "") || "/";
-const page = route === "/download" ? <DownloadPage /> : route === "/privacy" ? <PrivacyPage /> : <HomePage />;
+const Page = route === "/download"
+  ? lazy(() => import("./pages/DownloadPage").then(({ DownloadPage }) => ({ default: DownloadPage })))
+  : route === "/privacy"
+    ? lazy(() => import("./pages/PrivacyPage").then(({ PrivacyPage }) => ({ default: PrivacyPage })))
+    : lazy(() => import("./pages/HomePage").then(({ HomePage }) => ({ default: HomePage })));
 
-createRoot(document.getElementById("root")!).render(<StrictMode><SiteMotion />{page}</StrictMode>);
+createRoot(document.getElementById("root")!).render(
+  <StrictMode>
+    <SiteMotion />
+    <Suspense fallback={null}><Page /></Suspense>
+  </StrictMode>,
+);

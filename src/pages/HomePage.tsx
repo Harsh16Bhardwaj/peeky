@@ -45,7 +45,7 @@ export function HomePage() {
         <div className="hero-orb hero-orb--one" />
         <div className="hero-orb hero-orb--two" />
         <div className="shell hero-grid">
-          <div className="hero-copy reveal reveal--one">
+          <div className="hero-copy">
             <div className="eyebrow"><span className="live-dot" /> Your calm corner of Windows</div>
             <h1>Your screen is intense. <em className="word-shimmer">Peeky isn’t.</em></h1>
             <p className="hero-lede">
@@ -64,7 +64,7 @@ export function HomePage() {
             </div>
           </div>
 
-          <div className="hero-stage reveal reveal--two" aria-label="Peeky quick panel preview">
+          <div className="hero-stage" aria-label="Peeky quick panel preview">
             <div className="pulse-ring pulse-ring--one" />
             <div className="pulse-ring pulse-ring--two" />
             <div className="orbit-badge orbit-badge--blink"><Eye size={17} /> Blink</div>
@@ -144,7 +144,7 @@ export function HomePage() {
               </article>
               <article className="bento-card bento-card--screen">
                 <div className="card-copy"><span className="icon-chip icon-chip--coral"><MousePointer2 size={20} /></span><h3>There when you need it.<br />Gone when you don’t.</h3><p>Peeky lives in the notification area and stays out of your taskbar.</p></div>
-                <div className="screen-crop"><img src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} /></div>
+                <div className="screen-crop"><img src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} loading="lazy" decoding="async" /></div>
               </article>
             </div>
             <article className="bento-card bento-card--overlay">
@@ -168,7 +168,7 @@ export function HomePage() {
           </div>
 
           <div className="inspiration-band" data-reveal>
-            <div className="inspiration-source"><img src="/product/lookaway-logo.png" alt="LookAway app logo" width={64} height={64} /><span><small>INSPIRED BY</small><strong>LookAway</strong></span></div>
+            <div className="inspiration-source"><img src="/product/lookaway-logo.png" alt="LookAway app logo" width={64} height={64} loading="lazy" decoding="async" /><span><small>INSPIRED BY</small><strong>LookAway</strong></span></div>
             <div className="inspiration-copy"><span className="kicker">A nod to a great idea</span><h3>Calm screen breaks,<br /><em>rebuilt for Windows.</em></h3><p>We admire LookAway’s calm-first approach on Mac. Peeky is an independent Windows companion for the same core habit: pause, look farther, move, return.</p><small>Inspired by LookAway. Independent and not affiliated.</small></div>
             <div className="price-drop" aria-label="LookAway reference price nineteen dollars, Peeky price zero dollars">
               <div className="price-drop__head"><span>REFERENCE</span><span>PEEKY</span></div>
@@ -227,11 +227,11 @@ export function HomePage() {
           <div className="tour-grid">
             <article className="tour-card tour-card--dashboard">
               <div><span>01 / JOURNAL</span><h3>See the shape of a session</h3><p>Review meaningful activity without reconstructing every minute.</p></div>
-              <div className="tour-image"><img src="/product/dashboard.png" alt="Peeky local activity dashboard" width={1180} height={780} /></div>
+              <div className="tour-image"><img src="/product/dashboard.png" alt="Peeky local activity dashboard" width={1180} height={780} loading="lazy" decoding="async" /></div>
             </article>
             <article className="tour-card tour-card--settings">
               <div><span>02 / CONTROL</span><h3>Make every break yours</h3><p>Four reminders. Fully adjustable.</p></div>
-              <div className="tour-image"><img src="/product/settings.png" alt="Peeky break rhythm settings" width={1224} height={918} /></div>
+              <div className="tour-image"><img src="/product/settings.png" alt="Peeky break rhythm settings" width={1224} height={918} loading="lazy" decoding="async" /></div>
             </article>
           </div>
         </div>

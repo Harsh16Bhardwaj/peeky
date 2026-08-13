@@ -12,8 +12,12 @@ test("builds all three static pages", async () => {
   ]);
 
   assert.match(home, /Peeky - A calmer way to use your screen/);
+  assert.match(home, /canonical/);
+  assert.match(home, /Your screen is intense/);
   assert.match(download, /Download Peeky for Windows/);
+  assert.match(download, /Take a better/);
   assert.match(privacy, /Privacy Policy - Peeky/);
+  assert.match(privacy, /What Peeky stores/);
 });
 
 test("copies release artifacts into the self-hostable build", async () => {
@@ -22,15 +26,16 @@ test("copies release artifacts into the self-hostable build", async () => {
     access(new URL("dist/downloads/Peeky-Portable-x64.zip", root)),
     access(new URL("dist/downloads/SHA256SUMS.txt", root)),
     access(new URL("dist/og.png", root)),
+    access(new URL("dist/og.jpg", root)),
   ]);
 });
 
 test("ships the complete product story in the client bundle", async () => {
   const { readdir } = await import("node:fs/promises");
   const assets = await readdir(new URL("dist/assets/", root));
-  const script = assets.find((asset) => asset.endsWith(".js"));
-  assert.ok(script, "expected a built JavaScript bundle");
-  const bundle = await readFile(new URL(`dist/assets/${script}`, root), "utf8");
+  const scripts = assets.filter((asset) => asset.endsWith(".js"));
+  assert.ok(scripts.length, "expected built JavaScript bundles");
+  const bundle = (await Promise.all(scripts.map((script) => readFile(new URL(`dist/assets/${script}`, root), "utf8")))).join("\n");
   assert.match(bundle, /Calm screen breaks/);
   assert.match(bundle, /A break should/);
   assert.match(bundle, /Does Peeky work offline/);

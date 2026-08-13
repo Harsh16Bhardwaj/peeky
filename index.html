@@ -5,16 +5,88 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#17201c" />
     <meta name="description" content="A calm Windows break companion with gentle reminders and an optional, fully local activity journal." />
+    <link rel="canonical" href="https://www.thisispeeky.com/" />
+    <meta name="robots" content="index,follow,max-image-preview:large" />
+    <meta property="og:site_name" content="Peeky" />
+    <meta property="og:url" content="https://www.thisispeeky.com/" />
     <meta property="og:title" content="Peeky - Your screen is intense. Peeky isn't." />
     <meta property="og:description" content="Gentle break reminders and a private, local activity journal for Windows." />
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="/og.png" />
+    <meta property="og:image" content="https://www.thisispeeky.com/og.jpg" />
+    <meta property="og:image:alt" content="Peeky, a calm Windows break companion" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Peeky - A calmer way to use your screen" />
+    <meta name="twitter:description" content="Gentle break reminders and a private, local activity journal for Windows." />
+    <meta name="twitter:image" content="https://www.thisispeeky.com/og.jpg" />
     <link rel="icon" href="/peeky-icon.png" />
     <title>Peeky - A calmer way to use your screen</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://www.thisispeeky.com/#organization",
+            "name": "Peeky",
+            "url": "https://www.thisispeeky.com/",
+            "logo": "https://www.thisispeeky.com/peeky-icon.png"
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://www.thisispeeky.com/#website",
+            "url": "https://www.thisispeeky.com/",
+            "name": "Peeky",
+            "description": "A calm, local-first Windows break companion.",
+            "publisher": { "@id": "https://www.thisispeeky.com/#organization" },
+            "inLanguage": "en"
+          },
+          {
+            "@type": "SoftwareApplication",
+            "name": "Peeky",
+            "applicationCategory": "HealthApplication",
+            "operatingSystem": "Windows 10, Windows 11",
+            "downloadUrl": "https://www.thisispeeky.com/downloads/Peeky-Setup-x64.exe",
+            "url": "https://www.thisispeeky.com/",
+            "description": "A free Windows break companion with active-time reminders and a private local journal.",
+            "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+            "publisher": { "@id": "https://www.thisispeeky.com/#organization" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="initial-hero">
+        <a class="initial-brand" href="/" aria-label="Peeky home">Peeky</a>
+        <main class="initial-hero__content">
+          <p class="initial-kicker">Your calm corner of Windows</p>
+          <h1>Your screen is intense.<br /><em>Peeky isn’t.</em></h1>
+          <p>A gentle break companion for your eyes, posture, and focus. It keeps the rhythm simple and stays out of your way.</p>
+          <a class="initial-button" href="/downloads/Peeky-Setup-x64.exe" download>Download for Windows</a>
+        </main>
+        <nav class="initial-nav" aria-label="Peeky site navigation">
+          <a href="/">Peeky homepage</a>
+          <a href="/download/">Download Peeky</a>
+          <a href="/privacy/">Privacy policy</a>
+        </nav>
+      </div>
+    </div>
+    <noscript>
+      <style>.initial-nav { display: flex !important; }</style>
+    </noscript>
+    <style>
+      .initial-hero { min-height: 100vh; padding: 28px 6vw 72px; color: #17201c; background: #f5f5ef; font-family: Segoe UI, sans-serif; }
+      .initial-brand { color: #17201c; font-size: 22px; font-weight: 800; letter-spacing: -.05em; text-decoration: none; }
+      .initial-hero__content { max-width: 720px; padding-top: 18vh; }
+      .initial-kicker { color: #168668; font: 700 12px/1.2 Cascadia Mono, monospace; letter-spacing: .1em; text-transform: uppercase; }
+      .initial-hero h1 { margin: 24px 0 20px; font: 800 clamp(52px, 7vw, 88px)/.94 Segoe UI, sans-serif; letter-spacing: -.07em; }
+      .initial-hero h1 em { color: #168668; font-style: normal; }
+      .initial-hero__content > p:last-of-type { max-width: 560px; color: #69736d; font-size: 19px; line-height: 1.6; }
+      .initial-button { display: inline-flex; margin-top: 24px; padding: 16px 24px; border-radius: 999px; color: #0e2d23; background: #31c69a; font-weight: 750; text-decoration: none; }
+      .initial-nav { display: none; gap: 18px; margin-top: 32px; font-size: 13px; }
+      .initial-nav a { color: #168668; }
+    </style>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
