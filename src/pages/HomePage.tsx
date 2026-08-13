@@ -60,7 +60,7 @@ export function HomePage() {
             <div className="download-note">
               <span><Check size={14} /> Free</span>
               <span><Check size={14} /> Windows 10/11</span>
-              <span><Check size={14} /> v1.2.0</span>
+              <span><Check size={14} /> v2.0.0</span>
             </div>
           </div>
 
@@ -269,7 +269,7 @@ export function HomePage() {
           <h2>Give your eyes a tiny win.</h2>
           <p>Free for Windows 10 and 11. No account. No cloud. No nonsense.</p>
           <div className="hero-actions hero-actions--center">
-            <a className="button button--dark button--large" href="/downloads/Peeky-Setup-x64.exe" download><Download size={19} /> Download Peeky v1.2.0</a>
+            <a className="button button--dark button--large" href="/downloads/Peeky-Setup-x64.exe" download><Download size={19} /> Download Peeky v2.0.0</a>
             <a className="button button--ghost" href="/download/">Other download options</a>
           </div>
           <small>6.5 MB installer · SHA-256 checksum available</small>
