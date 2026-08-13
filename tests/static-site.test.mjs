@@ -31,8 +31,8 @@ test("ships the complete product story in the client bundle", async () => {
   const script = assets.find((asset) => asset.endsWith(".js"));
   assert.ok(script, "expected a built JavaScript bundle");
   const bundle = await readFile(new URL(`dist/assets/${script}`, root), "utf8");
-  assert.match(bundle, /Everything a calm companion should remember/);
-  assert.match(bundle, /Know what to do/);
+  assert.match(bundle, /Calm screen breaks/);
+  assert.match(bundle, /A break should/);
   assert.match(bundle, /Does Peeky work offline/);
   assert.match(bundle, /What Peeky can store/);
 });

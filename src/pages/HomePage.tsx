@@ -1,29 +1,20 @@
 import {
   Activity,
   ArrowRight,
-  BarChart3,
-  BellRing,
-  CalendarClock,
   Check,
   CloudOff,
-  Database,
   Download,
   Eye,
   Focus,
   Footprints,
-  Gauge,
   HeartPulse,
-  Laptop,
-  Layers3,
   MousePointer2,
   Pause,
   Play,
-  Settings2,
+  Plus,
   ShieldCheck,
   Sparkles,
   TimerReset,
-  Volume2,
-  Zap,
 } from "lucide-react";
 import { AppMark } from "../components/AppMark";
 import { SiteFooter } from "../components/SiteFooter";
@@ -34,15 +25,6 @@ const breakTypes = [
   { name: "Look away", interval: "Every 10 min", icon: Sparkles, color: "sky" },
   { name: "Posture", interval: "Every 30 min", icon: HeartPulse, color: "coral" },
   { name: "Walk away", interval: "Every 45 min", icon: Footprints, color: "sun" },
-];
-
-const featureDetails = [
-  { icon: Gauge, title: "Active-time aware", copy: "Timers move with real computer use and pause naturally while you’re away.", tone: "mint" },
-  { icon: CalendarClock, title: "Active hours", copy: "Keep reminders inside the hours you actually want Peeky protecting your focus.", tone: "sky" },
-  { icon: Volume2, title: "Quiet by choice", copy: "Shape the interruption with configurable sounds, overlays, and durations.", tone: "coral" },
-  { icon: Laptop, title: "Tray native", copy: "Close the window and Peeky keeps working quietly from the notification area.", tone: "sun" },
-  { icon: Database, title: "Local journal", copy: "Optional foreground-app context is stored in a readable database on your own PC.", tone: "violet" },
-  { icon: Layers3, title: "Two-hour sessions", copy: "Long workdays become smaller chapters that are much easier to understand.", tone: "mint" },
 ];
 
 const faqs = [
@@ -65,9 +47,9 @@ export function HomePage() {
         <div className="shell hero-grid">
           <div className="hero-copy reveal reveal--one">
             <div className="eyebrow"><span className="live-dot" /> Your calm corner of Windows</div>
-            <h1>Your screen is intense. <em>Peeky isn’t.</em></h1>
+            <h1>Your screen is intense. <em className="word-shimmer">Peeky isn’t.</em></h1>
             <p className="hero-lede">
-              A gentle break companion that protects your eyes, posture, and focus—then gives you a private, local view of where your time went.
+              A gentle break companion for your eyes, posture, and focus. It keeps the rhythm simple and stays out of your way.
             </p>
             <div className="hero-actions">
               <a className="button button--primary button--large" href="/downloads/Peeky-Setup-x64.exe" download>
@@ -98,14 +80,9 @@ export function HomePage() {
                   <AppMark size="large" />
                   <div><span>NEXT BREAK</span><strong>Blink</strong><b>3m 9s</b></div>
                 </div>
-                <div className="rhythm-list">
-                  {breakTypes.map(({ name, interval, color }) => (
-                    <div className={`rhythm-row rhythm-row--${color}`} key={name}>
-                      <div><span className="rhythm-dot" /><strong>{name}</strong></div>
-                      <small>{interval}</small>
-                      <i />
-                    </div>
-                  ))}
+                <div className="quick-context">
+                  <div><Activity size={15} /><span><small>ACTIVE SESSION</small><strong>27 minutes</strong></span><b>LIVE</b></div>
+                  <div><Pause size={15} /><span><small>SMART PAUSE</small><strong>Stops when you step away</strong></span><b>ON</b></div>
                 </div>
                 <div className="tracking-pill"><Activity size={16} /><strong>Activity session</strong><span>1h 18m</span></div>
               </div>
@@ -124,35 +101,26 @@ export function HomePage() {
         </div>
       </section>
 
-      <section className="product-signal" aria-label="Peeky product highlights">
-        <div className="shell product-signal__inner">
-          <div><span className="signal-icon"><Zap size={17} /></span><strong>Active time</strong><small>Not wall-clock nagging</small></div>
-          <i />
-          <div><span className="signal-icon"><ShieldCheck size={17} /></span><strong>100% local</strong><small>No account or cloud</small></div>
-          <i />
-          <div><span className="signal-icon"><BellRing size={17} /></span><strong>Four rhythms</strong><small>Eyes, posture, movement</small></div>
-          <i />
-          <div><span className="signal-icon"><Laptop size={17} /></span><strong>Windows native</strong><small>Quiet in your tray</small></div>
-        </div>
-      </section>
-
       <section className="section section--intro section--numbered" id="how-it-works" data-reveal>
         <span className="section-number" aria-hidden="true">01 / RHYTHM</span>
         <div className="shell">
           <div className="section-heading section-heading--center">
             <span className="kicker">A better screen rhythm</span>
-            <h2>Small interruptions.<br />Big difference.</h2>
-            <p>Peeky watches active computer time—not the clock—so breaks arrive when they’re actually useful.</p>
+            <h2>One hour.<br /><span className="display-accent">A healthier rhythm.</span></h2>
+            <p>Peeky watches active computer time, then layers tiny resets into one calm, readable cycle.</p>
           </div>
-          <div className="break-rhythm">
-            {breakTypes.map(({ name, interval, icon: Icon, color }, index) => (
-              <article className={`break-step break-step--${color}`} key={name}>
-                <span className="step-number">0{index + 1}</span>
-                <div className="step-icon"><Icon size={24} /></div>
-                <h3>{name}</h3>
-                <p>{interval}</p>
-              </article>
-            ))}
+          <div className="rhythm-map" data-reveal-item>
+            <div className="rhythm-map__head"><span><Activity size={16} /> ACTIVE-TIME SESSION</span><strong>00:00 → 60:00</strong></div>
+            <div className="rhythm-map__track" aria-label="A sixty minute Peeky break cycle">
+              <div className="rhythm-map__line"><i /></div>
+              <span className="time-mark time-mark--start">0</span><span className="time-mark time-mark--end">60 MIN</span>
+              {breakTypes.map(({ name, interval, icon: Icon, color }, index) => (
+                <article className={`rhythm-event rhythm-event--${color} rhythm-event--${index + 1}`} key={name}>
+                  <span className="rhythm-event__pulse" /><div><Icon size={19} /></div><small>0{index + 1}</small><strong>{name}</strong><p>{interval}</p>
+                </article>
+              ))}
+            </div>
+            <div className="rhythm-map__foot"><span><Pause size={15} /> Step away and the whole timeline pauses.</span><span><Check size={15} /> Every interval is adjustable.</span></div>
           </div>
         </div>
       </section>
@@ -166,30 +134,19 @@ export function HomePage() {
             <p>No productivity theater. Just a quiet tray companion, a few well-timed nudges, and a useful view of your active day.</p>
           </div>
           <div className="bento-grid">
-            <article className="bento-card bento-card--visual bento-card--wide">
-              <div className="card-copy"><span className="icon-chip icon-chip--mint"><TimerReset size={20} /></span><h3>Reminders that understand time away</h3><p>Active time pauses when you step away, so you don’t return to a pile of overdue break alerts.</p></div>
-              <div className="focus-visual">
-                <div className="focus-ring"><span>27m</span><small>focused</small></div>
-                <div className="focus-note"><span className="live-dot" /> quietly counting</div>
-              </div>
-            </article>
-            <article className="bento-card bento-card--dark">
-              <span className="icon-chip icon-chip--sky"><BarChart3 size={20} /></span>
-              <h3>Your time, in context</h3>
-              <p>Optional activity sessions group your day into readable two-hour chapters.</p>
-              <div className="bar-stack"><i /><i /><i /><i /><i /></div>
-            </article>
-            <article className="bento-card bento-card--sun">
-              <span className="icon-chip"><Settings2 size={20} /></span>
-              <h3>Your rhythm, your rules</h3>
-              <p>Tune every reminder, duration, active hour, sound, and overlay.</p>
-              <div className="toggle-row"><span>Blink reminders</span><i><b /></i></div>
-              <div className="toggle-row"><span>Smart away time</span><i><b /></i></div>
-            </article>
-            <article className="bento-card bento-card--wide bento-card--screen">
-              <div className="card-copy"><span className="icon-chip icon-chip--coral"><MousePointer2 size={20} /></span><h3>There when you need it.<br />Gone when you don’t.</h3><p>Peeky lives in the notification area and stays out of your taskbar.</p></div>
-              <div className="screen-crop"><img src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} /></div>
-            </article>
+            <div className="bento-pair">
+              <article className="bento-card bento-card--visual">
+                <div className="card-copy"><span className="icon-chip icon-chip--mint"><TimerReset size={20} /></span><h3>Reminders that understand time away</h3><p>Active time pauses when you step away, so you don’t return to a pile of overdue break alerts.</p></div>
+                <div className="focus-visual">
+                  <div className="focus-ring"><span>27m</span><small>focused</small></div>
+                  <div className="focus-note"><span className="live-dot" /> quietly counting</div>
+                </div>
+              </article>
+              <article className="bento-card bento-card--screen">
+                <div className="card-copy"><span className="icon-chip icon-chip--coral"><MousePointer2 size={20} /></span><h3>There when you need it.<br />Gone when you don’t.</h3><p>Peeky lives in the notification area and stays out of your taskbar.</p></div>
+                <div className="screen-crop"><img src="/product/quick-panel.png" alt="Peeky quick panel showing the next break" width={420} height={660} /></div>
+              </article>
+            </div>
             <article className="bento-card bento-card--overlay">
               <div className="card-copy"><span className="icon-chip icon-chip--sky"><Focus size={20} /></span><h3>A break that feels like a break</h3><p>Full-screen moments use clear language, one simple action, and room to breathe.</p></div>
               <div className="mini-overlay">
@@ -210,18 +167,14 @@ export function HomePage() {
             </article>
           </div>
 
-          <div className="feature-ledger" data-reveal>
-            <div className="feature-ledger__intro"><span className="kicker">The details matter</span><h3>Everything a calm companion should remember.</h3><p>Useful depth, without the software-suite bloat.</p></div>
-            <div className="feature-ledger__grid">
-              {featureDetails.map(({ icon: Icon, title, copy, tone }, index) => (
-                <article className={`feature-detail feature-detail--${tone}`} key={title}>
-                  <span className="feature-detail__number">{String(index + 1).padStart(2, "0")}</span>
-                  <Icon size={21} />
-                  <h4>{title}</h4>
-                  <p>{copy}</p>
-                  <span className="feature-detail__line" />
-                </article>
-              ))}
+          <div className="inspiration-band" data-reveal>
+            <div className="inspiration-source"><img src="/product/lookaway-logo.png" alt="LookAway app logo" width={64} height={64} /><span><small>INSPIRED BY</small><strong>LookAway</strong></span></div>
+            <div className="inspiration-copy"><span className="kicker">A nod to a great idea</span><h3>Calm screen breaks,<br /><em>rebuilt for Windows.</em></h3><p>We admire LookAway’s calm-first approach on Mac. Peeky is an independent Windows companion for the same core habit: pause, look farther, move, return.</p><small>Inspired by LookAway. Independent and not affiliated.</small></div>
+            <div className="price-drop" aria-label="LookAway reference price nineteen dollars, Peeky price zero dollars">
+              <div className="price-drop__head"><span>REFERENCE</span><span>PEEKY</span></div>
+              <div className="price-drop__numbers"><del>$19</del><ArrowRight size={20} /><strong>$0</strong></div>
+              <div className="price-drop__meter"><i /></div>
+              <p>Core break rhythm.<br />No checkout on Windows.</p>
             </div>
           </div>
         </div>
@@ -232,12 +185,12 @@ export function HomePage() {
         <div className="shell experience-grid">
           <div className="experience-copy">
             <span className="kicker kicker--light">A clear interruption</span>
-            <h2>Know what to do.<br />Know when it ends.</h2>
-            <p>Peeky gives each break one physical action and a visible finish line. The expanding ring cues you to move your focus off-screen; the countdown tells you exactly when to return.</p>
+            <h2>A break should<br /><span className="display-accent display-accent--light">explain itself.</span></h2>
+            <p>No vague wellness prompt. Peeky prepares you, gives you one physical action, and shows the exact moment your break ends.</p>
             <div className="experience-points">
+              <span><Check size={16} /> Soft three-second arrival</span>
               <span><Check size={16} /> One action, written plainly</span>
-              <span><Check size={16} /> Motion tied to the break duration</span>
-              <span><Check size={16} /> Pause or skip when life happens</span>
+              <span><Check size={16} /> A visible return point</span>
             </div>
           </div>
           <div className="overlay-demo">
@@ -254,36 +207,12 @@ export function HomePage() {
             <div className="demo-callout demo-callout--two"><span>02</span> Visible finish</div>
           </div>
         </div>
-        <div className="shell workday-flow" aria-label="A typical Peeky work rhythm">
-          <div className="workday-flow__track"><i /><b /></div>
-          <span><strong>09:00</strong> Focus begins</span>
-          <span><strong>09:05</strong> Blink</span>
-          <span><strong>09:10</strong> Look away</span>
-          <span><strong>09:30</strong> Posture</span>
-          <span><strong>09:45</strong> Walk away</span>
-        </div>
-      </section>
-
-      <section className="privacy-band section--numbered" id="privacy" data-reveal>
-        <span className="section-number section-number--dark" aria-hidden="true">04 / PRIVACY</span>
-        <div className="privacy-noise" />
-        <div className="shell privacy-grid">
-          <div className="privacy-copy">
-            <span className="kicker kicker--light">A deliberately small data footprint</span>
-            <h2>Peeky records less.<br />On purpose.</h2>
-            <p>The optional journal needs only an application name and time range. It never reads what is inside the app you are using.</p>
-            <div className="privacy-stats"><span><strong>0</strong> accounts</span><span><strong>0</strong> uploads</span><span><strong>1</strong> local database</span></div>
-            <a className="button button--light" href="/privacy/">Read the privacy promise <ArrowRight size={16} /></a>
-          </div>
-          <div className="privacy-receipt">
-            <div className="privacy-receipt__head"><span>LOCAL ACTIVITY EVENT</span><b>09:42:18</b></div>
-            <div className="privacy-receipt__event"><AppMark size="small" /><div><strong>Code.exe</strong><small>Foreground application · Productive</small></div><span>LOCAL</span></div>
-            <div className="privacy-receipt__rule"><span>Stored</span><strong>Application name + timestamps</strong><Check size={16} /></div>
-            <div className="privacy-receipt__rule is-blocked"><span>Not read</span><strong>Window title or document</strong><i>—</i></div>
-            <div className="privacy-receipt__rule is-blocked"><span>Not read</span><strong>Browser URL or tab</strong><i>—</i></div>
-            <div className="privacy-receipt__rule is-blocked"><span>Not read</span><strong>Keystrokes or screenshots</strong><i>—</i></div>
-            <div className="privacy-receipt__foot"><CloudOff size={15} /> No network destination exists</div>
-          </div>
+        <div className="shell break-anatomy" aria-label="Anatomy of a Peeky break">
+          <article><span>01</span><div><strong>Arrive gently</strong><small>A quiet cue gives you time to shift.</small></div><b>3 sec</b></article>
+          <i><ArrowRight size={17} /></i>
+          <article><span>02</span><div><strong>Do one thing</strong><small>Look at the farthest point you can see.</small></div><b>10 sec</b></article>
+          <i><ArrowRight size={17} /></i>
+          <article><span>03</span><div><strong>Return clearly</strong><small>The finish is visible, never indefinite.</small></div><b>DONE</b></article>
         </div>
       </section>
 
@@ -308,14 +237,22 @@ export function HomePage() {
         </div>
       </section>
 
+      <section className="privacy-strip" id="privacy" data-reveal>
+        <div className="shell privacy-strip__inner">
+          <span className="privacy-strip__label"><CloudOff size={15} /> PRIVATE BY DEFAULT</span>
+          <p>Your break rhythm and optional journal stay on this PC. No account, uploads, or cloud trail.</p>
+          <a className="text-link text-link--light" href="/privacy/">Read the privacy promise <ArrowRight size={15} /></a>
+        </div>
+      </section>
+
       <section className="section faq-section section--numbered" data-reveal>
         <span className="section-number" aria-hidden="true">06 / QUESTIONS</span>
         <div className="shell faq-layout">
-          <div className="faq-heading"><span className="kicker">Before you install</span><h2>The useful answers.</h2><p>No mystery permissions, subscription catches, or account setup waiting on the other side.</p><div className="faq-stamp"><AppMark size="medium" /><span><strong>PEEKY 1.2.0</strong><small>Windows 10/11 · x64</small></span></div></div>
+          <div className="faq-heading"><span className="kicker">Before you install</span><h2>The useful answers.</h2><p>No mystery permissions, subscription catches, or account setup waiting on the other side.</p><div className="faq-note"><span>06 concise answers</span><i /> <span>about 2 min</span></div></div>
           <div className="faq-list">
             {faqs.map(([question, answer], index) => (
               <details key={question} open={index === 0}>
-                <summary><span>{String(index + 1).padStart(2, "0")}</span>{question}<i>+</i></summary>
+                <summary><span>{String(index + 1).padStart(2, "0")}</span>{question}<i aria-hidden="true"><Plus size={15} /></i></summary>
                 <p>{answer}</p>
               </details>
             ))}
