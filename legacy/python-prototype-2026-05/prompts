@@ -1,0 +1,2356 @@
+# focus.md — Node 2: Event Log + Append Writer
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `events.py`**
+Touch nothing else. No state, no persistence, no timers.
+
+---
+
+## What to Build
+
+A single module that appends structured events to a daily log file.
+
+### Event format
+Newline-delimited JSON. One event per line. Never overwrite existing lines.
+
+```json
+{"ts": "2026-05-03T14:22:01Z", "type": "break_fired", "payload": {"break_id": "lookaway"}}
+```
+
+Fields:
+- `ts` — ISO 8601 UTC timestamp, always present, generated inside `log_event`
+- `type` — string event type from the enum below
+- `payload` — dict, optional, can be empty `{}`
+
+### Log file path
+`data/logs/events-YYYY-MM-DD.log`
+Date in filename is UTC date.
+Create the file if it does not exist.
+Create `data/logs/` directory if it does not exist.
+
+### Public API — expose exactly these and nothing else
+
+```python
+def log_event(event_type: str, payload: dict = {}) -> None
+def get_today_events() -> list[dict]
+def get_events_for_date(date: datetime.date) -> list[dict]
+def get_events_range(start: datetime.date, end: datetime.date) -> list[dict]
+```
+
+- `log_event` acquires a module-level `threading.Lock` before writing,
+  opens file in append mode, writes one JSON line, flushes immediately.
+  Never raises — catch all exceptions, log to stderr, continue.
+- `get_today_events` reads today's log file, parses each line as JSON,
+  skips malformed lines silently, returns list of dicts.
+- `get_events_for_date` same but for a specific date.
+- `get_events_range` iterates dates inclusively, aggregates all events.
+
+### Event type constants
+Define these as module-level string constants:
+
+```python
+EVT_APP_START         = "app_start"
+EVT_APP_STOP          = "app_stop"
+EVT_APP_CRASH         = "app_crash"
+EVT_APP_RECOVERED     = "app_recovered"
+
+EVT_BREAK_FIRED       = "break_fired"
+EVT_BREAK_COMPLETED   = "break_completed"
+EVT_BREAK_SKIPPED     = "break_skipped"
+EVT_BREAK_SNOOZED     = "break_snoozed"
+EVT_BREAK_AUTO_SKIP   = "break_auto_skipped"
+
+EVT_IDLE_START        = "idle_started"
+EVT_IDLE_END          = "idle_ended"
+
+EVT_POMODORO_START    = "pomodoro_started"
+EVT_POMODORO_DONE     = "pomodoro_completed"
+EVT_POMODORO_ABORT    = "pomodoro_aborted"
+
+EVT_TAB_ADDED         = "tab_added"
+EVT_TAB_OPENED        = "tab_opened"
+EVT_TAB_DELETED       = "tab_deleted"
+EVT_TAB_EXTENDED      = "tab_extended"
+
+EVT_HANDOFF_CREATED   = "handoff_created"
+EVT_HANDOFF_DONE      = "handoff_completed"
+EVT_HANDOFF_ARCHIVED  = "handoff_archived"
+
+EVT_WORKER_RESTART    = "worker_restarted"
+EVT_CONFIG_LOADED     = "config_loaded"
+EVT_SNAPSHOT_WRITTEN  = "snapshot_written"
+EVT_RECOVERY_USED     = "recovery_used"
+```
+
+### Wire into main.py
+After config loads successfully, add one call:
+
+```python
+log_event(EVT_APP_START, {"version": VERSION})
+```
+
+---
+
+## Acceptance Criteria
+
+- [ ] `log_event("test", {"x": 1})` creates correct file at correct path
+- [ ] Calling it 100 times results in 100 lines, no corruption
+- [ ] Two threads calling `log_event` simultaneously never interleave a partial line
+- [ ] `get_today_events()` returns parsed list matching what was written
+- [ ] A malformed line in the log file does not crash any read function
+- [ ] `python main.py` now writes `app_start` event to today's log file
+- [ ] No other files were modified except `events.py` and `main.py`
+
+---
+
+## Done?
+Update `focus.md` to Node 3 content.
+Log any deviations in `deviations.md` before closing.
+
+
+
+
+
+
+
+
+
+#################################################
+````markdown
+# focus.md — Node 3: Persistence + Atomic Writes
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `persistence.py`**
+Touch nothing else except wiring one call in `main.py`.
+
+---
+
+## What to Build
+
+A module responsible for all safe file writes, periodic snapshots,
+and timed backups. Nothing else in the app should write to disk directly
+except `events.py`. All snapshot writes go through this module.
+
+---
+
+## Safe Write Protocol
+
+Every write must follow this exact sequence, no exceptions:
+
+```
+1. Serialize content to {target}.tmp.json
+2. Flush and fsync the temp file (force OS to commit to disk)
+3. Copy current {target}.json to {target}.prev.json (if it exists)
+4. os.replace({target}.tmp.json, {target}.json)  ← atomic on same filesystem
+5. Verify {target}.json is readable valid JSON
+6. If step 5 fails, restore from .prev.json and raise
+```
+
+Use `os.replace` for the atomic rename — it overwrites atomically on
+Windows on the same filesystem and is the correct pattern for this. [Never
+use `os.rename` for cross-platform atomicity — `os.replace` is guaranteed
+not to fail if the destination exists.]
+
+---
+
+## Files Managed
+
+This module manages snapshots for:
+
+```
+data/app_state.json
+data/tabs.json
+data/handoffs.json
+data/config.json
+```
+
+Each has a corresponding `.prev.json` and `.tmp.json` sibling.
+
+---
+
+## Public API — expose exactly these
+
+```python
+def save_snapshot(filename: str, data: dict | list) -> None
+def load_snapshot(filename: str) -> dict | list | None
+def flush_all(state: dict) -> None
+def start_periodic_flush(get_state_fn: callable, interval_sec: int) -> None
+def stop_periodic_flush() -> None
+def write_backup(filename: str, data: dict | list) -> None
+def prune_backups(max_per_file: int = 48) -> None
+```
+
+### Behaviour rules per function
+
+**`save_snapshot(filename, data)`**
+- `filename` is relative to project root, e.g. `"data/app_state.json"`
+- Executes the full 6-step safe write protocol above
+- Acquires a per-file `threading.Lock` before writing
+- Never raises to caller — catch, log to stderr, continue
+- Logs `EVT_SNAPSHOT_WRITTEN` via `events.log_event` after successful write
+
+**`load_snapshot(filename)`**
+- Tries to read and parse `filename`
+- If missing or malformed, returns `None` — never raises
+- Does not fall back to `.prev` — that is recovery.py's job
+
+**`flush_all(state)`**
+- Calls `save_snapshot` for all four managed files
+- `state` is a dict with keys: `app_state`, `tabs`, `handoffs`, `config`
+- Runs all four saves sequentially, not concurrently
+
+**`start_periodic_flush(get_state_fn, interval_sec)`**
+- Starts a daemon thread that calls `flush_all(get_state_fn())` every
+  `interval_sec` seconds
+- `get_state_fn` is a callable that returns current state dict
+- Interval comes from `config["snapshot_interval_sec"]` (default: 30)
+- Thread must be a daemon thread so it dies cleanly with the process
+- Only one flush thread may run at a time — if called twice, ignore second call
+
+**`stop_periodic_flush()`**
+- Sets a stop event so the flush thread exits on next cycle
+- Performs one final `flush_all` before stopping
+
+**`write_backup(filename, data)`**
+- Writes a timestamped copy to `data/backups/`
+- Filename format: `{stem}-{YYYY-MM-DDTHH-MM-SS}.json`
+- Example: `data/backups/app_state-2026-05-03T14-22-01.json`
+- Called by the periodic flush thread every `backup_interval_min` minutes
+- Not called on every snapshot — only on the backup cadence
+
+**`prune_backups(max_per_file)`**
+- For each base filename, keeps only the most recent `max_per_file` backups
+- Deletes oldest first
+- Called after every `write_backup` call
+- Default max is 48 (covers 24 hrs at 30-min cadence)
+
+---
+
+## Per-file Lock Model
+
+Use a dict of `threading.Lock` objects keyed by filename:
+
+```python
+_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
+```
+
+This ensures two threads writing different files don't block each other,
+but two threads writing the same file are serialized.
+
+---
+
+## Wire into main.py
+
+After config loads and `EVT_APP_START` is logged, add:
+
+```python
+from persistence import start_periodic_flush
+
+# pass a lambda that returns current in-memory state
+# for now this is just the config dict since state.py isn't built yet
+start_periodic_flush(lambda: {"config": config}, interval_sec=config["snapshot_interval_sec"])
+```
+
+On exit (use `atexit.register`):
+
+```python
+import atexit
+from persistence import stop_periodic_flush
+atexit.register(stop_periodic_flush)
+```
+
+---
+
+## Acceptance Criteria
+
+- [ ] `save_snapshot("data/app_state.json", {"x": 1})` produces valid JSON
+- [ ] If process is killed mid-write to `.tmp`, `app_state.json` is uncorrupted
+- [ ] `.prev.json` contains the previous good value after a successful write
+- [ ] `load_snapshot` returns `None` on missing file without raising
+- [ ] Periodic flush thread starts, writes every 30 seconds, stops cleanly
+- [ ] Backup files appear in `data/backups/` with correct naming
+- [ ] `prune_backups` leaves at most 48 backups per base file
+- [ ] Two threads calling `save_snapshot` on the same file are serialized
+- [ ] Two threads calling `save_snapshot` on different files run independently
+- [ ] `python main.py` starts the flush thread and exits cleanly via `atexit`
+- [ ] No files other than `persistence.py` and `main.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 4 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+########################################
+
+
+````markdown
+# focus.md — Node 4: Recovery Engine
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `recovery.py`**
+Touch nothing else except wiring one call in `main.py`.
+
+---
+
+## What to Build
+
+A module that restores app state on startup when snapshots are missing,
+corrupt, or stale. This is the safety net under `persistence.py`.
+It runs once at boot, before anything else touches state.
+
+---
+
+## Three-Step Recovery Chain
+
+Attempt recovery in this exact order. Move to next step only if current fails.
+
+```
+Step 1 — Try current snapshot
+         Load data/app_state.json via persistence.load_snapshot()
+         If valid dict → use it, log EVT_RECOVERY_USED with source="snapshot"
+
+Step 2 — Try prev snapshot
+         Load data/app_state.prev.json directly (not via load_snapshot)
+         Parse as JSON manually
+         If valid dict → use it, log EVT_RECOVERY_USED with source="prev_snapshot"
+
+Step 3 — Rebuild from event log
+         Read today's event log via events.get_today_events()
+         If today is empty, also read yesterday's log
+         Walk events in chronological order
+         Reconstruct minimal viable state from events (see rules below)
+         Log EVT_RECOVERY_USED with source="event_log"
+
+Step 4 — Fallback to empty state (last resort)
+         If all three above fail or return nothing usable
+         Return a known-good empty default state dict
+         Log EVT_RECOVERY_USED with source="default"
+         Log EVT_APP_CRASH with reason="full_recovery_failure"
+```
+
+---
+
+## Public API — expose exactly these
+
+```python
+def recover_app_state() -> dict
+def recover_tabs() -> list
+def recover_handoffs() -> list
+def validate_state(state: dict) -> bool
+def validate_tabs(tabs: list) -> bool
+def validate_handoffs(handoffs: list) -> bool
+```
+
+### Behaviour rules per function
+
+**`recover_app_state() -> dict`**
+Runs the full four-step chain above.
+Returns a dict that is always safe to use as app state — never raises.
+Calls `validate_state` on every candidate before accepting it.
+
+**`recover_tabs() -> list`**
+Two-step only — no event log rebuild for tabs:
+- Step 1: load `data/tabs.json`
+- Step 2: load `data/tabs.prev.json`
+- Step 3: return empty list `[]`
+Always returns a list. Filters out any item that fails `validate_tabs`.
+
+**`recover_handoffs() -> list`**
+Same two-step pattern as `recover_tabs` but for `data/handoffs.json`.
+Always returns a list. Filters out any item that fails `validate_handoffs`.
+
+**`validate_state(state) -> bool`**
+Returns True if state is a dict and contains at minimum these keys:
+```python
+required_keys = [
+    "breaks_taken", "breaks_skipped", "breaks_auto_skipped",
+    "screen_time_sec", "pomodoro_count", "active_profile",
+    "timer_states", "last_snapshot_ts"
+]
+```
+Does not validate value types deeply — just presence of keys.
+
+**`validate_tabs(tabs) -> bool`**
+Returns True if tabs is a list.
+Each item must have at minimum: `id`, `url`, `saved_ts`.
+Silently drop items missing required fields instead of rejecting the whole list.
+
+**`validate_handoffs(handoffs) -> bool`**
+Returns True if handoffs is a list.
+Each item must have at minimum: `id`, `name`, `deadline_ts`, `status`.
+Silently drop invalid items.
+
+---
+
+## Event Log Rebuild Rules (Step 3)
+
+When rebuilding `app_state` from events, apply these rules in order:
+
+| Event type | What to update in state |
+|---|---|
+| `break_completed` | increment `breaks_taken` |
+| `break_skipped` | increment `breaks_skipped` |
+| `break_auto_skipped` | increment `breaks_auto_skipped` |
+| `idle_ended` | add `idle_sec` from payload to `screen_time_sec` approximation |
+| `pomodoro_completed` | increment `pomodoro_count` |
+| `config_loaded` | set `active_profile` from payload if present |
+
+All other event types: ignore during rebuild.
+Start from a zero-value default state dict before applying events.
+If event log is partially corrupt, skip malformed lines and continue.
+Never abort rebuild due to a single bad line.
+
+---
+
+## Default Empty State
+
+Define this as a module-level constant used as the Step 4 fallback:
+
+```python
+DEFAULT_STATE = {
+    "breaks_taken": 0,
+    "breaks_skipped": 0,
+    "breaks_auto_skipped": 0,
+    "screen_time_sec": 0,
+    "pomodoro_count": 0,
+    "active_profile": "work",
+    "timer_states": {
+        "blink":    {"last_fired_ts": None, "snoozed_until": None},
+        "lookaway": {"last_fired_ts": None, "snoozed_until": None},
+        "walk":     {"last_fired_ts": None, "snoozed_until": None}
+    },
+    "last_snapshot_ts": None
+}
+```
+
+Return a deep copy of this — never mutate the constant.
+
+---
+
+## Wire into main.py
+
+Replace the current stub state loading with recovery on boot:
+
+```python
+from recovery import recover_app_state, recover_tabs, recover_handoffs
+
+app_state = recover_app_state()
+tabs      = recover_tabs()
+handoffs  = recover_handoffs()
+
+log.info(f"State recovered — source will be in today's event log")
+```
+
+This replaces any direct `load_snapshot` call in `main.py`.
+Recovery is the only way state is loaded at boot from now on.
+
+---
+
+## Acceptance Criteria
+
+- [ ] Delete `data/app_state.json` → recovery uses `.prev.json` correctly
+- [ ] Delete both snapshot files → recovery rebuilds from event log
+- [ ] Delete all three → recovery returns `DEFAULT_STATE` without crashing
+- [ ] Corrupt JSON in `app_state.json` (write `{broken`) → falls through cleanly
+- [ ] Event log with 3 `break_completed` events → `breaks_taken` == 3 after rebuild
+- [ ] A single malformed line in event log does not abort rebuild
+- [ ] `EVT_RECOVERY_USED` is logged with correct `source` field in all four paths
+- [ ] `recover_tabs()` drops individual invalid items, not the whole list
+- [ ] `recover_handoffs()` drops individual invalid items, not the whole list
+- [ ] `python main.py` runs end-to-end using recovery for all state loading
+- [ ] No files other than `recovery.py` and `main.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 5 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+
+##############################################
+# focus.md — Node 5: Thread-Safe State Model
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `state.py`**
+Touch nothing else except wiring in `main.py`.
+
+---
+
+## What to Build
+
+A single shared in-memory state object that every thread reads and writes
+safely. This is the live runtime truth. Persistence writes from it.
+Recovery populates it. Timers, tray, and web all read from it.
+
+No thread touches `app_state.json`, `tabs.json`, or `handoffs.json` directly
+at runtime — they go through this object.
+
+---
+
+## Design Rules
+
+- One singleton `AppState` instance created at boot, passed everywhere
+- All mutations via explicit methods, never direct attribute assignment from outside
+- Every mutation acquires the internal `threading.Lock`
+- Reads of compound fields return deep copies, not references, to avoid
+  external mutation of internal state without the lock
+- No business logic inside state — pure data container with safe accessors
+
+---
+
+## Class Definition
+
+```python
+class AppState:
+    def __init__(self, initial: dict, tabs: list, handoffs: list, config: dict)
+```
+
+Constructor takes the dicts returned by `recover_*` functions and
+`config.json`. Populates all internal fields from them.
+
+---
+
+## Internal Fields
+
+Group fields into four domains:
+
+### Session counters (today, reset at midnight)
+```python
+_breaks_taken:        int
+_breaks_skipped:      int
+_breaks_auto_skipped: int
+_screen_time_sec:     int
+_pomodoro_count:      int
+_pomodoro_cycle:      int   # current cycle position 0..N before long break
+```
+
+### Timer states (one entry per timer id)
+```python
+_timer_states: dict[str, TimerState]
+```
+
+`TimerState` is a small dataclass:
+```python
+@dataclass
+class TimerState:
+    timer_id:       str
+    last_fired_ts:  float | None   # time.monotonic() value
+    snoozed_until:  float | None   # time.monotonic() value
+    enabled:        bool
+```
+
+### App lifecycle
+```python
+_active_profile:  str
+_paused:          bool
+_paused_until:    float | None     # time.monotonic(), None = indefinite
+_running:         bool
+```
+
+### Collections
+```python
+_tabs:      list[dict]
+_handoffs:  list[dict]
+```
+
+### Worker heartbeats
+```python
+_heartbeats: dict[str, float]   # worker_name → time.monotonic() of last beat
+```
+
+---
+
+## Public API
+
+Expose exactly these methods. No public attributes.
+
+### Counters
+```python
+def increment_breaks_taken(self) -> None
+def increment_breaks_skipped(self) -> None
+def increment_breaks_auto_skipped(self) -> None
+def add_screen_time(self, seconds: int) -> None
+def increment_pomodoro(self) -> None
+def reset_daily_counters(self) -> None        # called at midnight
+def get_session_summary(self) -> dict         # returns deep copy of all counters
+```
+
+### Timer state
+```python
+def get_timer_state(self, timer_id: str) -> TimerState   # returns copy
+def set_timer_fired(self, timer_id: str, ts: float) -> None
+def set_timer_snoozed(self, timer_id: str, until: float) -> None
+def clear_timer_snooze(self, timer_id: str) -> None
+def set_timer_enabled(self, timer_id: str, enabled: bool) -> None
+def get_all_timer_states(self) -> dict[str, TimerState]  # returns deep copy
+```
+
+### Lifecycle
+```python
+def get_active_profile(self) -> str
+def set_active_profile(self, profile: str) -> None
+def is_paused(self) -> bool
+def pause(self, until_ts: float | None = None) -> None
+def resume(self) -> None
+def is_running(self) -> bool
+def shutdown(self) -> None
+```
+
+### Tabs
+```python
+def get_tabs(self) -> list[dict]           # deep copy
+def add_tab(self, tab: dict) -> None
+def remove_tab(self, tab_id: str) -> None
+def extend_tab(self, tab_id: str, hours: int = 24) -> None
+def mark_tab_opened(self, tab_id: str) -> None
+```
+
+### Handoffs
+```python
+def get_handoffs(self) -> list[dict]       # deep copy
+def add_handoff(self, handoff: dict) -> None
+def update_handoff(self, handoff_id: str, updates: dict) -> None
+def complete_handoff(self, handoff_id: str) -> None
+def archive_handoff(self, handoff_id: str) -> None
+```
+
+### Heartbeats
+```python
+def beat(self, worker_name: str) -> None
+def get_heartbeats(self) -> dict[str, float]   # deep copy
+def last_beat(self, worker_name: str) -> float | None
+```
+
+### Snapshot serialization
+```python
+def to_snapshot(self) -> dict    # returns full serializable state dict
+```
+
+`to_snapshot` must return a dict that:
+- Is JSON-serializable (no `float` `inf`/`nan`, no sets, no custom objects)
+- Matches the schema expected by `recovery.validate_state()`
+- Includes `last_snapshot_ts` as current UTC ISO string
+
+---
+
+## Midnight Reset
+
+`reset_daily_counters` zeroes all session counters.
+The caller (supervisor or timer thread in a later node) is responsible for
+calling this at the right time — `state.py` just provides the method.
+
+---
+
+## Wire into main.py
+
+Replace the raw dicts from recovery with an `AppState` instance:
+
+```python
+from state import AppState
+from recovery import recover_app_state, recover_tabs, recover_handoffs
+
+raw_state  = recover_app_state()
+raw_tabs   = recover_tabs()
+raw_handoffs = recover_handoffs()
+
+state = AppState(
+    initial=raw_state,
+    tabs=raw_tabs,
+    handoffs=raw_handoffs,
+    config=config
+)
+
+log.info("AppState initialised")
+```
+
+Update the `start_periodic_flush` lambda to use `state.to_snapshot()`:
+
+```python
+start_periodic_flush(
+    get_state_fn=lambda: {
+        "app_state": state.to_snapshot(),
+        "tabs":      state.get_tabs(),
+        "handoffs":  state.get_handoffs(),
+        "config":    config
+    },
+    interval_sec=config["snapshot_interval_sec"]
+)
+```
+
+---
+
+## Acceptance Criteria
+
+- [ ] Two threads calling `increment_breaks_taken` 500 times each →
+      `get_session_summary()["breaks_taken"]` == 1000, no race condition
+- [ ] `pause()` sets `is_paused()` to True, `resume()` sets it back
+- [ ] `add_tab` → `get_tabs()` returns the item, as a copy not reference
+- [ ] Mutating the dict returned by `get_tabs()` does not mutate internal state
+- [ ] `to_snapshot()` returns valid JSON-serializable dict
+- [ ] `validate_state(state.to_snapshot())` from `recovery.py` returns True
+- [ ] `beat("timer")` → `last_beat("timer")` returns a recent monotonic float
+- [ ] `reset_daily_counters()` zeroes all counters, does not touch timer states
+- [ ] `python main.py` constructs `AppState`, logs success, exits cleanly
+- [ ] No files other than `state.py` and `main.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 6 content.
+Log all deviations in `deviations.md` before closing.
+
+
+
+
+
+
+
+
+
+
+
+###########################################
+# focus.md — Node 6: Supervisor + Thread Lifecycle
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `supervisor.py`**
+Touch nothing else except wiring in `main.py`.
+
+---
+
+## What to Build
+
+A lightweight internal process supervisor that starts all worker threads,
+monitors their health via heartbeats, and restarts any thread that dies
+or goes silent beyond a threshold. It is the last thing main.py starts
+and the first thing it stops.
+
+---
+
+## Worker Registry
+
+Define a `WorkerSpec` dataclass for each managed thread:
+
+```python
+@dataclass
+class WorkerSpec:
+    name:              str
+    target:            callable
+    args:              tuple
+    daemon:            bool
+    heartbeat_timeout: int        # seconds before considered dead
+    restart_delay:     int        # seconds to wait before restarting
+    max_restarts:      int        # -1 = unlimited
+```
+
+The supervisor holds a list of `WorkerSpec` entries and a parallel dict
+of live `threading.Thread` objects keyed by worker name.
+
+---
+
+## Workers to Register
+
+Register these workers in this order. Their `target` functions are stubs
+for now — each will be implemented in later nodes. Pass `state` and `config`
+as args where noted.
+
+```python
+WorkerSpec(
+    name="timer",
+    target=stubs.timer_worker,
+    args=(state, config),
+    daemon=True,
+    heartbeat_timeout=60,
+    restart_delay=2,
+    max_restarts=-1
+)
+WorkerSpec(
+    name="idle",
+    target=stubs.idle_worker,
+    args=(state, config),
+    daemon=True,
+    heartbeat_timeout=30,
+    restart_delay=2,
+    max_restarts=-1
+)
+WorkerSpec(
+    name="reminder",
+    target=stubs.reminder_worker,
+    args=(state, config),
+    daemon=True,
+    heartbeat_timeout=60,
+    restart_delay=2,
+    max_restarts=-1
+)
+WorkerSpec(
+    name="hotkeys",
+    target=stubs.hotkeys_worker,
+    args=(state, config),
+    daemon=True,
+    heartbeat_timeout=60,
+    restart_delay=5,
+    max_restarts=3
+)
+WorkerSpec(
+    name="web",
+    target=stubs.web_worker,
+    args=(state, config),
+    daemon=True,
+    heartbeat_timeout=120,
+    restart_delay=5,
+    max_restarts=5
+)
+WorkerSpec(
+    name="persistence",
+    target=stubs.persistence_worker,
+    args=(state, config),
+    daemon=True,
+    heartbeat_timeout=90,
+    restart_delay=2,
+    max_restarts=-1
+)
+```
+
+Create a `stubs.py` file at project root with empty worker functions
+that just sleep in a loop and call `state.beat(worker_name)` every 10 seconds.
+This makes the supervisor testable without any real worker logic.
+
+---
+
+## Public API
+
+```python
+class Supervisor:
+    def __init__(self, state: AppState, config: dict)
+    def start_all(self) -> None
+    def stop_all(self) -> None
+    def restart_worker(self, name: str) -> None
+    def get_status(self) -> dict
+```
+
+---
+
+## Supervisor Monitor Loop
+
+After `start_all`, run a background monitor thread (not a registered worker,
+internal to supervisor) that loops every 5 seconds and:
+
+1. For each registered worker:
+   - Check if thread is alive via `thread.is_alive()`
+   - If dead → log `EVT_WORKER_RESTART` with `reason="thread_dead"`,
+     wait `restart_delay`, respawn thread
+   - If alive → check `state.last_beat(name)`
+   - If last beat is older than `heartbeat_timeout` seconds →
+     log `EVT_WORKER_RESTART` with `reason="heartbeat_timeout"`,
+     attempt to kill thread (set a stop event), wait `restart_delay`, respawn
+   - Track restart count per worker against `max_restarts`
+   - If `max_restarts` exceeded → log error, do not restart,
+     mark worker as `failed` in status
+
+2. Check if midnight has passed since last check →
+   call `state.reset_daily_counters()` once
+
+3. Update supervisor's own heartbeat in a local timestamp
+
+---
+
+## Stop Event Pattern
+
+Each worker needs a way to be told to stop gracefully.
+Use a dict of `threading.Event` objects keyed by worker name:
+
+```python
+_stop_events: dict[str, threading.Event]
+```
+
+Pass the stop event to each worker as the last argument in `args`.
+Stub workers must respect `stop_event.wait(timeout=10)` in their loop
+instead of `time.sleep(10)` so they wake immediately on stop.
+
+---
+
+## get_status
+
+Returns a snapshot dict of all worker states:
+
+```python
+{
+    "timer":    {"alive": True,  "restarts": 0, "last_beat": 1234.5, "status": "ok"},
+    "idle":     {"alive": True,  "restarts": 0, "last_beat": 1234.2, "status": "ok"},
+    "web":      {"alive": False, "restarts": 6, "last_beat": None,   "status": "failed"},
+    ...
+}
+```
+
+This will be consumed by `GET /api/health` in Node 14.
+
+---
+
+## Wire into main.py
+
+```python
+from supervisor import Supervisor
+
+supervisor = Supervisor(state=state, config=config)
+supervisor.start_all()
+
+log.info("All workers started")
+
+# keep main thread alive
+try:
+    while state.is_running():
+        time.sleep(1)
+except KeyboardInterrupt:
+    log.info("Shutdown signal received")
+finally:
+    supervisor.stop_all()
+    stop_periodic_flush()
+    log_event(EVT_APP_STOP, {"version": VERSION})
+    log.info("Peeky shut down cleanly")
+```
+
+Remove the `sys.exit(0)` stub from previous nodes.
+`main.py` now runs until `state.shutdown()` is called or KeyboardInterrupt.
+
+---
+
+## Acceptance Criteria
+
+- [ ] `supervisor.start_all()` starts all 6 workers, all threads alive
+- [ ] Manually killing a stub worker thread → supervisor restarts it within 10s
+- [ ] `EVT_WORKER_RESTART` logged on every restart with correct reason
+- [ ] Worker with `max_restarts=3` that keeps dying → marked `failed` after 3 attempts, no further restarts
+- [ ] `stop_all()` sets all stop events, all stub workers exit cleanly
+- [ ] Midnight simulation: manually call `state.reset_daily_counters()` → counters zero
+- [ ] `get_status()` reflects accurate alive/restart/beat info
+- [ ] `python main.py` runs, all workers start, sits idle, exits cleanly on Ctrl+C
+- [ ] No files other than `supervisor.py`, `stubs.py`, and `main.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 7 content.
+Log all deviations in `deviations.md` before closing.
+
+
+
+
+
+
+
+
+################################
+````markdown
+# focus.md — Node 7: Idle Detection
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `idle.py`**
+Replace `stubs.idle_worker` with the real implementation.
+Touch nothing else except removing the stub reference in `stubs.py`.
+
+---
+
+## What to Build
+
+A module that continuously monitors whether the user is idle or active,
+logs transitions, accumulates active screen time into `AppState`, and
+exposes a query function that other modules (timers, reminders) call
+before firing to decide whether to suppress.
+
+---
+
+## How Idle Detection Works on Windows
+
+Use `GetLastInputInfo` from `user32.dll` via `ctypes`.
+This returns the tick count of the last input event (mouse or keyboard).
+Compare against `GetTickCount64` to get milliseconds since last input.
+
+```python
+import ctypes
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+def get_idle_ms() -> int:
+    lii = LASTINPUTINFO()
+    lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+    ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii))
+    return ctypes.windll.kernel32.GetTickCount64() - lii.dwTime
+```
+
+This is the only platform API call in this module.
+Wrap it so if it raises (non-Windows, test env) it returns 0.
+
+---
+
+## Public API
+
+```python
+def get_idle_ms() -> int
+def is_idle(threshold_sec: int | None = None) -> bool
+def start_idle_worker(state: AppState, config: dict, stop_event: threading.Event) -> None
+```
+
+**`get_idle_ms()`**
+Returns milliseconds since last user input.
+Never raises — returns 0 on failure.
+
+**`is_idle(threshold_sec)`**
+Returns True if `get_idle_ms()` exceeds threshold.
+If `threshold_sec` is None, use `config["idle_threshold_sec"]` — but since
+this is a module-level call without config context, accept an explicit int.
+Default to 300 seconds if called with None and no config available.
+This function is called by `timers.py` in Node 8 before firing any reminder.
+
+**`start_idle_worker(state, config, stop_event)`**
+This is the real worker that replaces `stubs.idle_worker`.
+It runs a polling loop and manages idle/active transitions.
+
+---
+
+## Worker Loop Behaviour
+
+Poll every 5 seconds using `stop_event.wait(timeout=5)`.
+
+Maintain two pieces of internal state:
+```python
+_currently_idle: bool = False
+_last_active_ts: float = time.monotonic()   # monotonic ts of last active tick
+```
+
+On each tick:
+
+```
+idle_ms = get_idle_ms()
+threshold_ms = config["idle_threshold_sec"] * 1000
+
+if idle_ms < threshold_ms:
+    # User is active
+    if _currently_idle:
+        # Transition: idle → active
+        _currently_idle = False
+        log EVT_IDLE_END with payload {"idle_sec": elapsed_idle_seconds}
+        state.beat("idle")
+
+    # Accumulate screen time
+    # Add 5 seconds (poll interval) to screen_time_sec
+    state.add_screen_time(5)
+    _last_active_ts = time.monotonic()
+
+else:
+    # User is idle
+    if not _currently_idle:
+        # Transition: active → idle
+        _currently_idle = True
+        log EVT_IDLE_START with payload {"ts": current_utc_iso}
+
+    state.beat("idle")
+```
+
+---
+
+## Wake-from-Sleep Handling
+
+When Windows wakes from sleep, `GetTickCount64` resets relative to wake,
+but `GetLastInputInfo` may return a very old tick value, making `get_idle_ms()`
+return an enormous number. This is fine — it will correctly appear as idle.
+
+The real problem is the screen time accumulator: if the poll fires right
+after wake and naively adds 5 seconds, that's fine. But if there's a gap
+of 30 minutes between polls (sleep), adding 5 seconds is still correct
+because the loop naturally didn't run during sleep.
+
+No special wake detection needed. The 5-second poll cadence handles this
+correctly by design — you only add time when the loop is actually running.
+
+---
+
+## Midnight Counter Reset
+
+The supervisor handles midnight detection and calls `state.reset_daily_counters()`.
+The idle worker does not need to handle this.
+`screen_time_sec` is one of the fields that gets reset at midnight.
+
+---
+
+## Replace Stub
+
+In `stubs.py`, replace:
+```python
+def idle_worker(state, config, stop_event):
+    while not stop_event.wait(timeout=10):
+        state.beat("idle")
+```
+
+With an import delegation:
+```python
+from idle import start_idle_worker as idle_worker
+```
+
+This keeps `stubs.py` as a clean registry and moves real logic to `idle.py`.
+
+---
+
+## Acceptance Criteria
+
+- [ ] `get_idle_ms()` returns a positive integer on Windows, 0 on failure
+- [ ] `is_idle(5)` returns True if no input for 5+ seconds (manually verify)
+- [ ] Moving mouse immediately makes `is_idle()` return False
+- [ ] `EVT_IDLE_START` logged when user stops input beyond threshold
+- [ ] `EVT_IDLE_END` logged with correct `idle_sec` when user returns
+- [ ] `state.get_session_summary()["screen_time_sec"]` increments during active use
+- [ ] `screen_time_sec` does not increment while idle
+- [ ] Worker beats every tick via `state.beat("idle")`
+- [ ] Worker exits cleanly when `stop_event` is set
+- [ ] No files other than `idle.py` and `stubs.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 8 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#############################################
+````markdown
+# focus.md — Node 7: Idle Detection
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `idle.py`**
+Replace `stubs.idle_worker` with the real implementation.
+Touch nothing else except removing the stub reference in `stubs.py`.
+
+---
+
+## What to Build
+
+A module that continuously monitors whether the user is idle or active,
+logs transitions, accumulates active screen time into `AppState`, and
+exposes a query function that other modules (timers, reminders) call
+before firing to decide whether to suppress.
+
+---
+
+## How Idle Detection Works on Windows
+
+Use `GetLastInputInfo` from `user32.dll` via `ctypes`.
+This returns the tick count of the last input event (mouse or keyboard).
+Compare against `GetTickCount64` to get milliseconds since last input.
+
+```python
+import ctypes
+
+class LASTINPUTINFO(ctypes.Structure):
+    _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+def get_idle_ms() -> int:
+    lii = LASTINPUTINFO()
+    lii.cbSize = ctypes.sizeof(LASTINPUTINFO)
+    ctypes.windll.user32.GetLastInputInfo(ctypes.byref(lii))
+    return ctypes.windll.kernel32.GetTickCount64() - lii.dwTime
+```
+
+This is the only platform API call in this module.
+Wrap it so if it raises (non-Windows, test env) it returns 0.
+
+---
+
+## Public API
+
+```python
+def get_idle_ms() -> int
+def is_idle(threshold_sec: int | None = None) -> bool
+def start_idle_worker(state: AppState, config: dict, stop_event: threading.Event) -> None
+```
+
+**`get_idle_ms()`**
+Returns milliseconds since last user input.
+Never raises — returns 0 on failure.
+
+**`is_idle(threshold_sec)`**
+Returns True if `get_idle_ms()` exceeds threshold.
+If `threshold_sec` is None, use `config["idle_threshold_sec"]` — but since
+this is a module-level call without config context, accept an explicit int.
+Default to 300 seconds if called with None and no config available.
+This function is called by `timers.py` in Node 8 before firing any reminder.
+
+**`start_idle_worker(state, config, stop_event)`**
+This is the real worker that replaces `stubs.idle_worker`.
+It runs a polling loop and manages idle/active transitions.
+
+---
+
+## Worker Loop Behaviour
+
+Poll every 5 seconds using `stop_event.wait(timeout=5)`.
+
+Maintain two pieces of internal state:
+```python
+_currently_idle: bool = False
+_last_active_ts: float = time.monotonic()   # monotonic ts of last active tick
+```
+
+On each tick:
+
+```
+idle_ms = get_idle_ms()
+threshold_ms = config["idle_threshold_sec"] * 1000
+
+if idle_ms < threshold_ms:
+    # User is active
+    if _currently_idle:
+        # Transition: idle → active
+        _currently_idle = False
+        log EVT_IDLE_END with payload {"idle_sec": elapsed_idle_seconds}
+        state.beat("idle")
+
+    # Accumulate screen time
+    # Add 5 seconds (poll interval) to screen_time_sec
+    state.add_screen_time(5)
+    _last_active_ts = time.monotonic()
+
+else:
+    # User is idle
+    if not _currently_idle:
+        # Transition: active → idle
+        _currently_idle = True
+        log EVT_IDLE_START with payload {"ts": current_utc_iso}
+
+    state.beat("idle")
+```
+
+---
+
+## Wake-from-Sleep Handling
+
+When Windows wakes from sleep, `GetTickCount64` resets relative to wake,
+but `GetLastInputInfo` may return a very old tick value, making `get_idle_ms()`
+return an enormous number. This is fine — it will correctly appear as idle.
+
+The real problem is the screen time accumulator: if the poll fires right
+after wake and naively adds 5 seconds, that's fine. But if there's a gap
+of 30 minutes between polls (sleep), adding 5 seconds is still correct
+because the loop naturally didn't run during sleep.
+
+No special wake detection needed. The 5-second poll cadence handles this
+correctly by design — you only add time when the loop is actually running.
+
+---
+
+## Midnight Counter Reset
+
+The supervisor handles midnight detection and calls `state.reset_daily_counters()`.
+The idle worker does not need to handle this.
+`screen_time_sec` is one of the fields that gets reset at midnight.
+
+---
+
+## Replace Stub
+
+In `stubs.py`, replace:
+```python
+def idle_worker(state, config, stop_event):
+    while not stop_event.wait(timeout=10):
+        state.beat("idle")
+```
+
+With an import delegation:
+```python
+from idle import start_idle_worker as idle_worker
+```
+
+This keeps `stubs.py` as a clean registry and moves real logic to `idle.py`.
+
+---
+
+## Acceptance Criteria
+
+- [ ] `get_idle_ms()` returns a positive integer on Windows, 0 on failure
+- [ ] `is_idle(5)` returns True if no input for 5+ seconds (manually verify)
+- [ ] Moving mouse immediately makes `is_idle()` return False
+- [ ] `EVT_IDLE_START` logged when user stops input beyond threshold
+- [ ] `EVT_IDLE_END` logged with correct `idle_sec` when user returns
+- [ ] `state.get_session_summary()["screen_time_sec"]` increments during active use
+- [ ] `screen_time_sec` does not increment while idle
+- [ ] Worker beats every tick via `state.beat("idle")`
+- [ ] Worker exits cleanly when `stop_event` is set
+- [ ] No files other than `idle.py` and `stubs.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 8 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+###################################
+````markdown
+# focus.md — Node 8: Multi-Break Timer Engine
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `timers.py`**
+Replace `stubs.timer_worker` with real implementation.
+Touch nothing else except removing stub reference in `stubs.py`.
+
+---
+
+## What to Build
+
+A timer engine that manages multiple independent break timers loaded from
+config, evaluates which are due on each tick, handles snooze/skip/complete
+actions, coalesces simultaneous reminders, and fires due reminders to a
+queue that `reminders.py` will consume in Node 9.
+
+---
+
+## Timer Object
+
+Define a `BreakTimer` dataclass:
+
+```python
+@dataclass
+class BreakTimer:
+    id:           str
+    name:         str
+    interval_sec: int
+    duration_sec: int
+    priority:     int       # 1 = highest (walk), 3 = lowest (blink)
+    message:      str
+    enabled:      bool
+```
+
+Load all timers from `config["timers"]` at worker start.
+Sync enabled state with `state.get_timer_state(timer_id).enabled` on load —
+state wins over config if they conflict (user may have toggled at runtime).
+
+---
+
+## Due Evaluation
+
+The worker polls every **1 second** using `stop_event.wait(timeout=1)`.
+
+On each tick, for every enabled timer:
+
+```
+timer_state = state.get_timer_state(timer_id)
+
+# Skip if snoozed
+if timer_state.snoozed_until and time.monotonic() < timer_state.snoozed_until:
+    continue
+
+# Skip if idle
+if is_idle(config["idle_threshold_sec"]):
+    continue
+
+# Skip if app is paused
+if state.is_paused():
+    continue
+
+# Check if due
+last_fired = timer_state.last_fired_ts or app_start_monotonic
+elapsed = time.monotonic() - last_fired
+if elapsed >= timer.interval_sec:
+    mark as due
+```
+
+Collect all due timers into a list for this tick.
+
+---
+
+## Merge Window Coalescing
+
+If more than one timer is due on the same tick:
+
+1. Sort due timers by priority ascending (1 = walk fires first)
+2. Fire the highest priority one immediately
+3. Delay remaining due timers by `MERGE_WINDOW_SEC = 90` seconds
+   by setting their `last_fired_ts` to `time.monotonic()` without logging
+   a fire event — this effectively postpones them by one merge window
+4. Log a single `EVT_BREAK_FIRED` only for the timer that actually fires
+
+This prevents stacked reminder spam when blink, lookaway, and walk all
+become due at the same time.
+
+---
+
+## Reminder Queue
+
+Use a `queue.Queue` instance created in `timers.py` and imported by
+`reminders.py`. This is the handoff point between the two modules.
+
+```python
+# timers.py
+import queue
+reminder_queue: queue.Queue = queue.Queue()
+```
+
+When a timer is due and passes all checks, put a `ReminderRequest` onto
+the queue:
+
+```python
+@dataclass
+class ReminderRequest:
+    timer_id:     str
+    name:         str
+    message:      str
+    duration_sec: int
+    priority:     int
+    fired_ts:     float    # time.monotonic()
+```
+
+The timer worker does not show any UI. It only enqueues.
+`reminders.py` (Node 9) dequeues and shows UI.
+
+After enqueuing, immediately call:
+```python
+state.set_timer_fired(timer_id, time.monotonic())
+log_event(EVT_BREAK_FIRED, {"break_id": timer_id, "priority": timer.priority})
+```
+
+---
+
+## Action Handling
+
+`timers.py` must also expose functions that `reminders.py` calls after
+the user takes an action on a reminder:
+
+```python
+def on_break_completed(timer_id: str) -> None
+def on_break_skipped(timer_id: str) -> None
+def on_break_snoozed(timer_id: str, snooze_sec: int) -> None
+```
+
+**`on_break_completed`**
+```python
+state.increment_breaks_taken()
+state.clear_timer_snooze(timer_id)
+log_event(EVT_BREAK_COMPLETED, {"break_id": timer_id})
+```
+
+**`on_break_skipped`**
+```python
+state.increment_breaks_skipped()
+log_event(EVT_BREAK_SKIPPED, {"break_id": timer_id})
+```
+
+**`on_break_snoozed`**
+```python
+state.set_timer_snoozed(timer_id, time.monotonic() + snooze_sec)
+log_event(EVT_BREAK_SNOOZED, {"break_id": timer_id, "snooze_sec": snooze_sec})
+```
+
+Snooze options: 120 seconds and 300 seconds only.
+
+---
+
+## App Start Monotonic Anchor
+
+On worker start, record:
+```python
+app_start_monotonic = time.monotonic()
+```
+
+Use this as `last_fired_ts` fallback for timers that have no prior fire
+record (e.g. fresh install, full state loss). This means all timers start
+their first countdown from when the app booted, not from zero epoch.
+
+If `timer_state.last_fired_ts` is not None (recovered from state), convert
+it carefully: state stores UTC ISO timestamps, convert to monotonic equivalent
+using the delta between `datetime.utcnow()` and the stored timestamp,
+subtracted from `time.monotonic()`. Document this conversion in a helper:
+
+```python
+def iso_ts_to_monotonic(iso_str: str) -> float
+```
+
+This ensures timers resume correctly after restart rather than firing
+immediately.
+
+---
+
+## Replace Stub
+
+In `stubs.py` replace timer stub with:
+
+```python
+from timers import start_timer_worker as timer_worker
+```
+
+Add to `timers.py`:
+
+```python
+def start_timer_worker(state: AppState, config: dict, stop_event: threading.Event) -> None
+```
+
+This is the entry point the supervisor calls.
+
+---
+
+## Acceptance Criteria
+
+- [ ] All three timers (blink/lookaway/walk) load from config correctly
+- [ ] Walk timer (highest priority) fires before blink when both are due simultaneously
+- [ ] Coalesced lower-priority timers are delayed by merge window, not lost
+- [ ] `reminder_queue` receives a `ReminderRequest` when timer is due
+- [ ] No reminder fires while `state.is_paused()` is True
+- [ ] No reminder fires while `is_idle()` returns True
+- [ ] Snoozed timer does not fire until snooze window has passed
+- [ ] `EVT_BREAK_FIRED` logged on every real fire
+- [ ] `EVT_BREAK_COMPLETED`, `EVT_BREAK_SKIPPED`, `EVT_BREAK_SNOOZED` logged on actions
+- [ ] After app restart, timers resume from recovered `last_fired_ts`, not from zero
+- [ ] Worker beats `state.beat("timer")` every tick
+- [ ] Worker exits cleanly on `stop_event` set
+- [ ] No files other than `timers.py` and `stubs.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 9 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+################
+````markdown
+# focus.md — Node 9: Reminder Dispatch + UX
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Files to implement: `reminders.py` and `ui/notifier.py`**
+Replace `stubs.reminder_worker` with real implementation.
+Touch nothing else except removing stub reference in `stubs.py`.
+
+---
+
+## What to Build
+
+A module that consumes `ReminderRequest` objects from `timers.reminder_queue`,
+shows the appropriate UI notification per reminder type, waits for user
+action (Done / Snooze / Skip), then calls the correct action handler back
+in `timers.py`. `ui/notifier.py` owns all visual output. `reminders.py`
+owns the queue consumer loop and action dispatch.
+
+---
+
+## Two Notification Styles
+
+### Style 1 — Toast (for blink timer, priority 3)
+Small unobtrusive Windows toast notification in the bottom-right corner.
+No fullscreen. Auto-dismisses after `duration_sec` seconds if no action.
+Auto-dismiss counts as Done.
+Use `plyer.notification.notify()` for this — it is already in requirements.
+
+```python
+plyer.notification.notify(
+    title="Peeky — Blink Reminder",
+    message=reminder.message,
+    app_name="Peeky",
+    timeout=reminder.duration_sec
+)
+```
+
+No action buttons on toast — plyer on Windows does not support them.
+Auto-dismiss = Done. Log `EVT_BREAK_COMPLETED`.
+
+### Style 2 — PyQt5 Overlay (for lookaway and walk, priority 1 and 2)
+Focused PyQt5 window with countdown, message, and action buttons.
+Not fullscreen for now — centered on primary monitor, fixed size 480x320.
+Fullscreen multi-monitor overlay is deferred to Node 22.
+Always on top. No taskbar entry. No window frame.
+
+---
+
+## Pre-Reminder Heads-Up Toast
+
+Before showing any Style 2 overlay, fire a heads-up toast first if
+`config["notifications"]["pre_reminder_sec"]` > 0:
+
+```
+- Show plyer toast: "Break in {pre_reminder_sec} seconds — {timer.name}"
+- Wait pre_reminder_sec seconds
+- Then show the full overlay
+```
+
+Skip heads-up if pre_reminder_sec is 0 or if it is a blink reminder.
+
+---
+
+## PyQt5 Overlay Spec (`ui/notifier.py`)
+
+Class: `ReminderOverlay(QWidget)`
+
+```
+Layout (vertical, centred):
+  ┌─────────────────────────────────┐
+  │                                 │
+  │   👁  Look Away                 │  ← timer name, large
+  │                                 │
+  │  Look at something 20 feet      │  ← message text
+  │  away for 20 seconds.           │
+  │                                 │
+  │         [  20  ]                │  ← countdown circle, animates
+  │                                 │
+  │  [ Done ]  [ +2min ]  [ Skip ]  │  ← action buttons
+  │                                 │
+  └─────────────────────────────────┘
+```
+
+### Countdown ring
+Draw a circular arc using `QPainter` in `paintEvent`.
+Arc sweeps from full circle to zero over `duration_sec` seconds.
+Use a `QTimer` ticking every 1 second to decrement counter and call
+`update()` to repaint.
+Color: teal `#0D9488` for arc, dark background `#0F172A`.
+
+### Buttons
+- **Done** — green tint `#14532D`, calls `on_done()`
+- **+2 min** — neutral, calls `on_snooze(120)`
+- **+5 min** — neutral, calls `on_snooze(300)`
+- **Skip** — red tint `#7F1D1D`, calls `on_skip()`
+
+Walk reminder shows an additional label: "Stand up and move."
+with a slightly larger font. No other differences between reminder types.
+
+### Window flags
+```python
+self.setWindowFlags(
+    Qt.WindowStaysOnTopHint |
+    Qt.FramelessWindowHint  |
+    Qt.Tool                 # no taskbar entry
+)
+self.setAttribute(Qt.WA_TranslucentBackground)
+```
+
+### Fade in/out
+On show: animate `windowOpacity` from 0.0 to 1.0 over 300ms using `QPropertyAnimation`.
+On close: animate from 1.0 to 0.0 over 200ms, then call `self.close()`.
+
+### Sound
+On overlay show, play `config["notifications"]["sound_file"]` if
+`config["notifications"]["sound_enabled"]` is True.
+Use `winsound.PlaySound` with `winsound.SND_FILENAME | winsound.SND_ASYNC`.
+If file missing or winsound fails, continue silently.
+
+---
+
+## reminders.py — Queue Consumer
+
+```python
+def start_reminder_worker(state: AppState, config: dict, stop_event: threading.Event) -> None
+```
+
+Loop:
+```
+while not stop_event.is_set():
+    try:
+        request = reminder_queue.get(timeout=1)
+    except queue.Empty:
+        state.beat("reminder")
+        continue
+
+    state.beat("reminder")
+    dispatch_reminder(request, state, config)
+    reminder_queue.task_done()
+```
+
+**`dispatch_reminder(request, state, config)`**
+
+```
+if request.priority == 3:  # blink
+    show_toast(request)
+    timers.on_break_completed(request.timer_id)
+
+else:  # lookaway, walk
+    if config["notifications"]["pre_reminder_sec"] > 0:
+        show_heads_up_toast(request, config)
+        time.sleep(config["notifications"]["pre_reminder_sec"])
+
+    if state.is_paused() or is_idle(config["idle_threshold_sec"]):
+        # became idle or paused during heads-up window
+        state.increment_breaks_auto_skipped()
+        log_event(EVT_BREAK_AUTO_SKIP, {"break_id": request.timer_id, "reason": "idle_during_headsup"})
+        return
+
+    show_overlay(request, state, config)
+```
+
+**`show_overlay`** must create the `ReminderOverlay` on the **main Qt thread**.
+Since `reminders.py` runs in a worker thread, use `QMetaObject.invokeMethod`
+or a `pyqtSignal` to dispatch overlay creation to main thread.
+
+Define a module-level `QObject` subclass with a signal:
+
+```python
+class ReminderSignaller(QObject):
+    show_reminder = pyqtSignal(object)   # passes ReminderRequest
+
+_signaller = ReminderSignaller()
+```
+
+Connect `_signaller.show_reminder` to a slot on the main thread that
+creates and shows `ReminderOverlay`.
+Emit from reminder worker thread: `_signaller.show_reminder.emit(request)`.
+
+The overlay's action callbacks (`on_done`, `on_snooze`, `on_skip`) call
+back into `timers.on_break_completed / on_break_skipped / on_break_snoozed`
+and also close the overlay.
+
+---
+
+## main.py: Qt App Initialisation
+
+For `QMetaObject` and signals to work, a `QApplication` instance must
+exist on the main thread before any Qt objects are created.
+Add to `main.py` before supervisor starts:
+
+```python
+from PyQt5.QtWidgets import QApplication
+import sys
+
+qt_app = QApplication.instance() or QApplication(sys.argv)
+```
+
+The main thread loop changes to:
+
+```python
+try:
+    while state.is_running():
+        qt_app.processEvents()
+        time.sleep(0.05)
+except KeyboardInterrupt:
+    ...
+```
+
+This keeps the Qt event loop ticking on the main thread so signals
+delivered to it are processed.
+
+---
+
+## Replace Stub
+
+In `stubs.py`:
+```python
+from reminders import start_reminder_worker as reminder_worker
+```
+
+---
+
+## Acceptance Criteria
+
+- [ ] Blink reminder shows a toast and auto-logs `EVT_BREAK_COMPLETED`
+- [ ] Lookaway reminder shows heads-up toast then overlay
+- [ ] Walk reminder shows heads-up toast then overlay with stand-up label
+- [ ] Done button closes overlay, logs `EVT_BREAK_COMPLETED`
+- [ ] Skip button closes overlay, logs `EVT_BREAK_SKIPPED`
+- [ ] +2min snooze closes overlay, timer does not fire for 120 seconds
+- [ ] +5min snooze closes overlay, timer does not fire for 300 seconds
+- [ ] Countdown ring animates correctly from full to zero over duration
+- [ ] Overlay fades in on show and fades out on close
+- [ ] Sound plays on overlay show if enabled, fails silently if file missing
+- [ ] If user goes idle during heads-up window, overlay is suppressed and logged as auto-skipped
+- [ ] Overlay is created on main thread via signal, not directly from worker thread
+- [ ] `QApplication` exists before supervisor starts in `main.py`
+- [ ] Worker beats every loop tick
+- [ ] Worker exits cleanly on stop event
+- [ ] No files other than `reminders.py`, `ui/notifier.py`, and `main.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 10 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+###############################
+````markdown
+# focus.md — Node 10: Pomodoro Engine
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: add Pomodoro logic to `timers.py`**
+No new files. Extend `timers.py` only.
+Touch nothing else except `state.py` if a minor method is missing.
+
+---
+
+## What to Build
+
+A Pomodoro session manager that runs independently alongside the break
+timers already in `timers.py`. It tracks work sessions and break sessions,
+counts cycles, fires reminders via the existing `reminder_queue`, and
+logs all events. It does not replace the eye break timers — both systems
+run concurrently.
+
+---
+
+## Pomodoro State Machine
+
+```
+IDLE → WORKING → BREAK → WORKING → BREAK → ... → LONG_BREAK → IDLE
+```
+
+States:
+```python
+class PomodoroState(Enum):
+    IDLE        = "idle"
+    WORKING     = "working"
+    ON_BREAK    = "on_break"
+    ON_LONG_BREAK = "on_long_break"
+```
+
+Keep this state internally in `timers.py` as a module-level or class-level
+variable. Do not put Pomodoro FSM state inside `AppState` — only the
+counters (`pomodoro_count`, `pomodoro_cycle`) live in `AppState`.
+
+---
+
+## Config Values Used
+
+Read from `config["profiles"][active_profile]`:
+
+```
+pomodoro_enabled              bool
+pomodoro_work_min             int   (default 25)
+pomodoro_break_min            int   (default 5)
+pomodoro_long_break_min       int   (default 15)
+pomodoro_cycles_before_long   int   (default 4)
+```
+
+If `pomodoro_enabled` is False for the active profile, the Pomodoro
+engine stays in IDLE and does nothing. Re-check on every cycle start
+in case profile was switched mid-session.
+
+---
+
+## Pomodoro Class
+
+Add a `PomodoroEngine` class inside `timers.py`:
+
+```python
+class PomodoroEngine:
+    def __init__(self, state: AppState, config: dict)
+    def start(self) -> None
+    def stop(self) -> None
+    def skip_current(self) -> None
+    def get_status(self) -> dict
+    def tick(self) -> None          # called every second by timer worker loop
+```
+
+The existing `start_timer_worker` calls `engine.tick()` on every loop
+iteration after evaluating break timers. Pomodoro is a second concern
+handled in the same worker thread — no new thread needed.
+
+---
+
+## tick() Logic
+
+```
+if pomodoro_state == IDLE:
+    return   # engine not started, do nothing
+
+if pomodoro_state == WORKING:
+    increment _work_elapsed by 1 second
+    if _work_elapsed >= work_duration_sec:
+        complete current work session → transition to BREAK or LONG_BREAK
+
+if pomodoro_state == ON_BREAK or ON_LONG_BREAK:
+    increment _break_elapsed by 1 second
+    if _break_elapsed >= break_duration_sec:
+        complete current break → transition to WORKING
+```
+
+---
+
+## Transitions
+
+### WORKING → BREAK
+```
+state.increment_pomodoro()
+state._pomodoro_cycle += 1   # use state method, add one if missing
+
+if cycle >= pomodoro_cycles_before_long:
+    transition to ON_LONG_BREAK
+    reset cycle counter to 0
+    duration = pomodoro_long_break_min * 60
+else:
+    transition to ON_BREAK
+    duration = pomodoro_break_min * 60
+
+log_event(EVT_POMODORO_DONE, {
+    "cycle": current_cycle,
+    "work_sec": _work_elapsed,
+    "profile": active_profile
+})
+
+enqueue ReminderRequest to reminder_queue:
+    timer_id="pomodoro_break"
+    name="Pomodoro Break" or "Long Break"
+    message="Work session complete. Take a break."
+    duration_sec=break_duration
+    priority=2
+    fired_ts=time.monotonic()
+
+reset _work_elapsed = 0
+```
+
+### ON_BREAK / ON_LONG_BREAK → WORKING
+```
+log_event(EVT_POMODORO_START, {
+    "cycle": current_cycle,
+    "profile": active_profile
+})
+
+enqueue ReminderRequest:
+    timer_id="pomodoro_work"
+    name="Back to Work"
+    message="Break over. Time to focus."
+    duration_sec=5
+    priority=3    # toast only, not overlay
+    fired_ts=time.monotonic()
+
+reset _break_elapsed = 0
+transition to WORKING
+```
+
+---
+
+## start() and stop()
+
+**`start()`**
+- Only callable when `pomodoro_state == IDLE`
+- Sets state to WORKING
+- Resets `_work_elapsed = 0`, `_break_elapsed = 0`
+- Logs `EVT_POMODORO_START` with `{"cycle": 0, "profile": active_profile}`
+- Does nothing if Pomodoro is disabled in active profile
+
+**`stop()`**
+- Sets state to IDLE
+- Resets all counters
+- Logs `EVT_POMODORO_ABORT` with `{"reason": "manual_stop"}`
+
+**`skip_current()`**
+- If WORKING: force transition to BREAK/LONG_BREAK immediately
+  (set `_work_elapsed` to work duration, trigger transition)
+- If ON_BREAK or ON_LONG_BREAK: force transition to WORKING
+  (set `_break_elapsed` to break duration, trigger transition)
+- This is what the tray "Skip current phase" action will call in Node 12
+
+---
+
+## get_status()
+
+```python
+{
+    "state":          "working",
+    "work_elapsed":   843,
+    "work_total":     1500,
+    "break_elapsed":  0,
+    "break_total":    300,
+    "cycle":          2,
+    "cycles_total":   4,
+    "pomodoro_count": 6,
+    "enabled":        True
+}
+```
+
+This is consumed by the tray tooltip and later by the dashboard API.
+
+---
+
+## Expose Engine Reference
+
+The `PomodoroEngine` instance must be accessible from outside `timers.py`
+for the tray (Node 12) to call `start()`, `stop()`, `skip_current()`.
+
+Add a module-level reference:
+
+```python
+_pomodoro_engine: PomodoroEngine | None = None
+
+def get_pomodoro_engine() -> PomodoroEngine | None:
+    return _pomodoro_engine
+```
+
+Set `_pomodoro_engine` inside `start_timer_worker` after creating the engine.
+
+---
+
+## State.py Additions
+
+If `AppState` is missing a `increment_pomodoro_cycle` / `reset_pomodoro_cycle`
+method, add it now. Keep the addition minimal — just the two methods:
+
+```python
+def increment_pomodoro_cycle(self) -> None
+def reset_pomodoro_cycle(self) -> None
+```
+
+Log this addition in `deviations.md` as a minor cross-node state extension.
+
+---
+
+## Acceptance Criteria
+
+- [ ] Pomodoro engine starts in IDLE, transitions to WORKING on `start()`
+- [ ] Work phase completes after configured minutes, transitions to break
+- [ ] Break phase completes after configured minutes, transitions back to work
+- [ ] Long break fires after `pomodoro_cycles_before_long` completed cycles
+- [ ] Cycle counter resets to 0 after long break
+- [ ] `EVT_POMODORO_DONE` logged at end of each work session
+- [ ] `EVT_POMODORO_START` logged at start of each work session
+- [ ] `EVT_POMODORO_ABORT` logged on `stop()`
+- [ ] `reminder_queue` receives break notification at end of work session
+- [ ] `reminder_queue` receives "back to work" toast at end of break session
+- [ ] `skip_current()` immediately triggers the appropriate transition
+- [ ] Pomodoro does nothing when `pomodoro_enabled: false` in active profile
+- [ ] `get_status()` returns accurate dict at all state machine positions
+- [ ] `get_pomodoro_engine()` returns the live engine instance
+- [ ] Eye break timers continue firing independently alongside Pomodoro
+- [ ] `state.get_session_summary()["pomodoro_count"]` increments correctly
+- [ ] No new threads created — Pomodoro runs on timer worker thread via tick()
+- [ ] Only `timers.py` and `state.py` (minor addition) were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 11 content.
+Log all deviations in `deviations.md` before closing.
+````
+
+
+
+
+
+
+
+
+
+
+######################
+
+````markdown
+# focus.md — Node 11: Tray Shell
+
+## Read First
+`AGENT.md` → `architecture.md` → `instructions.md` → `updates.md` → `deviations.md`
+
+---
+
+## Scope
+**Only file to implement: `tray.py`**
+Replace `stubs.tray_worker` — but note: tray is not a registered supervisor
+worker. It runs on its own thread started directly from `main.py`.
+Touch nothing else except `main.py` wiring.
+
+---
+
+## What to Build
+
+A system tray icon with a static right-click menu that covers all top-level
+actions. No dynamic labels yet — that is Node 12. This node delivers a
+working tray icon that appears, has a correct menu, and responds to clicks.
+App exits cleanly when Quit is selected.
+
+---
+
+## Tray Icon
+
+Use `pystray`. The icon must be a valid PIL `Image` object.
+
+Load from `assets/peeky.ico` if it exists.
+If loading fails for any reason, generate a fallback programmatically:
+
+```python
+from PIL import Image, ImageDraw
+
+def make_fallback_icon() -> Image.Image:
+    img = Image.new("RGBA", (64, 64), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    draw.ellipse(, fill="#0D9488")   # teal circle [chromewebstore.google](https://chromewebstore.google.com/detail/lookaway-20-20-20-break-r/cfneflckoealpaldpekfjndbccdbckfn)
+    draw.ellipse(, fill="#F0FDFA")  # white inner [apps.microsoft](https://apps.microsoft.com/detail/9nhz4zm897bk?hl=en-US)
+    return img
+```
+
+Log the fallback in `deviations.md` if `peeky.ico` is not yet a real icon.
+
+---
+
+## Menu Structure
+
+Build the menu using `pystray.Menu` and `pystray.MenuItem`.
+All items are static strings for now. Dynamic labels come in Node 12.
+
+```
+Peeky                        ← title item, not clickable (grayed)
+─────────────────────────
+▶ Dashboard                  ← opens browser to localhost:41741/
+▶ Tabs                       ← opens browser to localhost:41741/tabs
+▶ Handoffs                   ← opens browser to localhost:41741/handoffs
+─────────────────────────
+⏸ Pause Reminders            ← stub action for now, wired in Node 12
+▶ Settings                   ← stub, opens nothing yet
+─────────────────────────
+▶ Quit                       ← calls shutdown
+```
+
+Use `pystray.Menu.SEPARATOR` for the horizontal dividers.
+
+For non-clickable title item:
+```python
+pystray.MenuItem("Peeky", None, enabled=False)
+```
+
+---
+
+## Menu Actions (Node 11 scope)
+
+### Dashboard / Tabs / Handoffs
+Open in default browser using `webbrowser.open()`:
+
+```python
+import webbrowser
+
+def open_dashboard(icon, item):
+    webbrowser.open(f"http://localhost:{config['dashboard_port']}/")
+
+def open_tabs(icon, item):
+    webbrowser.open(f"http://localhost:{config['dashboard_port']}/tabs")
+
+def open_handoffs(icon, item):
+    webbrowser.open(f"http://localhost:{config['dashboard_port']}/handoffs")
+```
+
+These will show a browser error page until the web server is built in Node 14.
+That is acceptable — the tray action itself must work.
+
+### Pause Reminders
+Stub only for now:
+```python
+def on_pause(icon, item):
+    log.info("Pause clicked — wired in Node 12")
+```
+
+### Settings
+Stub only:
+```python
+def on_settings(icon, item):
+    log.info("Settings clicked — wired in Node 21")
+```
+
+### Quit
+```python
+def on_quit(icon, item):
+    log_event(EVT_APP_STOP, {"reason": "user_quit"})
+    state.shutdown()
+    icon.stop()
+```
+
+`state.shutdown()` sets `_running = False`, which exits the main thread loop.
+`icon.stop()` stops the pystray event loop.
+
+---
+
+## Tray Class
+
+```python
+class TrayApp:
+    def __init__(self, state: AppState, config: dict)
+    def build_menu(self) -> pystray.Menu
+    def start(self) -> None      # blocking — runs pystray loop
+    def stop(self) -> None       # called from outside to stop tray
+```
+
+`start()` calls `pystray.Icon.run()` which blocks.
+It must run in its own thread so `main.py` is not blocked.
+
+---
+
+## Wire into main.py
+
+Start the tray on a dedicated thread **before** the supervisor:
+
+```python
+from tray import TrayApp
+import threading
+
+tray = TrayApp(state=state, config=config)
+tray_thread = threading.Thread(target=tray.start, daemon=True, name="tray")
+tray_thread.start()
+
+log.info("Tray started")
+```
+
+The tray thread is daemon so it dies with the process.
+It is not registered with the supervisor — the tray is critical
+infrastructure. If the tray dies, the app should exit, not restart.
+
+Add tray stop to the shutdown sequence:
+
+```python
+finally:
+    supervisor.stop_all()
+    tray.stop()
+    stop_periodic_flush()
+    log_event(EVT_APP_STOP, {"version": VERSION})
+```
+
+---
+
+## Double-Click Behaviour
+
+Set the tray icon's default action (double-click on Windows) to open dashboard:
+
+```python
+icon = pystray.Icon(
+    name="Peeky",
+    icon=img,
+    title="Peeky",
+    menu=menu
+)
+icon.default_action = open_dashboard
+```
+
+---
+
+## Tooltip
+
+Set the tray tooltip to a static string for now:
+```
+"Peeky — Screen health companion"
+```
+
+Dynamic tooltip (next break ETA, active profile) comes in Node 12.
+
+---
+
+## Acceptance Criteria
+
+- [ ] Tray icon appears in Windows system tray on `python main.py`
+- [ ] Icon is either loaded from `assets/peeky.ico` or fallback teal circle
+- [ ] Right-click shows all menu items with correct labels and separators
+- [ ] Dashboard / Tabs / Handoffs items open browser to correct localhost URLs
+- [ ] Quit stops the tray, calls `state.shutdown()`, main loop exits cleanly
+- [ ] Double-clicking tray icon opens dashboard in browser
+- [ ] Tray runs on its own thread and does not block supervisor or timers
+- [ ] `EVT_APP_STOP` with `reason="user_quit"` logged on Quit
+- [ ] App exits with no hanging threads after Quit
+- [ ] Pause and Settings items exist in menu, log a message when clicked
+- [ ] No files other than `tray.py` and `main.py` were modified
+
+---
+
+## Done?
+Update `focus.md` to Node 12 content.
+Log all deviations in `deviations.md` before closing.
+````

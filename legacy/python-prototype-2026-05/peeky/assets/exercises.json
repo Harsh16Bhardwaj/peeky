@@ -1,0 +1,37 @@
+[
+  {
+    "id": "blink_rapid",
+    "prompt": "Blink your eyes rapidly 10 times.",
+    "duration_hint": "10 seconds"
+  },
+  {
+    "id": "look_far",
+    "prompt": "Find something at least 20 feet away and focus on it.",
+    "duration_hint": "20 seconds"
+  },
+  {
+    "id": "eye_roll",
+    "prompt": "Slowly roll your eyes in a full circle, clockwise then counter-clockwise.",
+    "duration_hint": "15 seconds"
+  },
+  {
+    "id": "near_far",
+    "prompt": "Hold your thumb close to your face, focus on it, then shift focus to a far object. Repeat 5 times.",
+    "duration_hint": "20 seconds"
+  },
+  {
+    "id": "palm",
+    "prompt": "Close your eyes and gently cup your palms over them. Breathe slowly.",
+    "duration_hint": "20 seconds"
+  },
+  {
+    "id": "figure_eight",
+    "prompt": "Trace a slow figure-eight with your eyes without moving your head.",
+    "duration_hint": "15 seconds"
+  },
+  {
+    "id": "diagonal",
+    "prompt": "Look up-left, then down-right. Then up-right, then down-left. Repeat 5 times.",
+    "duration_hint": "15 seconds"
+  }
+]

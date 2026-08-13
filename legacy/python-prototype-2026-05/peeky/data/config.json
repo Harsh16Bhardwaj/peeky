@@ -1,0 +1,83 @@
+{
+  "version": "0.1.0",
+  "theme": "teal",
+  "tray_enabled": true,
+  "dashboard_port": 41741,
+  "idle_threshold_sec": 300,
+  "stale_tab_hours": 24,
+  "snapshot_interval_sec": 30,
+  "backup_interval_min": 30,
+  "log_retention_days": 30,
+  "active_profile": "work",
+  "profiles": {
+    "work": {
+      "label": "Work",
+      "strict_mode": false,
+      "pomodoro_enabled": true,
+      "pomodoro_work_min": 25,
+      "pomodoro_break_min": 5,
+      "pomodoro_long_break_min": 15,
+      "pomodoro_cycles_before_long": 4
+    },
+    "study": {
+      "label": "Study",
+      "strict_mode": false,
+      "pomodoro_enabled": true,
+      "pomodoro_work_min": 50,
+      "pomodoro_break_min": 10,
+      "pomodoro_long_break_min": 20,
+      "pomodoro_cycles_before_long": 2
+    },
+    "casual": {
+      "label": "Casual",
+      "strict_mode": false,
+      "pomodoro_enabled": false,
+      "pomodoro_work_min": 60,
+      "pomodoro_break_min": 10,
+      "pomodoro_long_break_min": 20,
+      "pomodoro_cycles_before_long": 4
+    }
+  },
+  "timers": [
+    {
+      "id": "blink",
+      "name": "Blink Reminder",
+      "enabled": true,
+      "interval_sec": 600,
+      "duration_sec": 10,
+      "priority": 3,
+      "message": "Blink your eyes rapidly 10 times."
+    },
+    {
+      "id": "lookaway",
+      "name": "Look Away",
+      "enabled": true,
+      "interval_sec": 1200,
+      "duration_sec": 20,
+      "priority": 2,
+      "message": "Look at something 20 feet away for 20 seconds."
+    },
+    {
+      "id": "walk",
+      "name": "Walk Break",
+      "enabled": true,
+      "interval_sec": 1800,
+      "duration_sec": 60,
+      "priority": 1,
+      "message": "Stand up and take a short walk."
+    }
+  ],
+  "hotkeys": {
+    "save_tab": "ctrl+shift+s",
+    "open_tabs": "ctrl+shift+t",
+    "quick_capture": "ctrl+shift+space"
+  },
+  "notifications": {
+    "sound_enabled": true,
+    "sound_file": "assets/sounds/chime.wav",
+    "pre_reminder_sec": 10
+  },
+  "autostart": true,
+  "auto_update_check": true,
+  "github_releases_url": "https://api.github.com/repos/yourusername/peeky/releases/latest"
+}

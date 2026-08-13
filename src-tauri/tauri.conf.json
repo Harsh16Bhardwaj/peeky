@@ -1,0 +1,93 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Peeky",
+  "version": "2.1.0",
+  "identifier": "com.harsh.peeky",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist-web"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "quick",
+        "title": "Peeky",
+        "url": "index.html#/quick",
+        "width": 420,
+        "height": 660,
+        "minWidth": 420,
+        "minHeight": 660,
+        "maxWidth": 420,
+        "maxHeight": 660,
+        "visible": false,
+        "resizable": false,
+        "decorations": false,
+        "transparent": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "shadow": false
+      },
+      {
+        "label": "settings",
+        "title": "Peeky Settings",
+        "url": "index.html#/settings",
+        "width": 980,
+        "height": 720,
+        "minWidth": 860,
+        "minHeight": 640,
+        "visible": false,
+        "resizable": true,
+        "decorations": false,
+        "center": true,
+        "shadow": false
+      },
+      {
+        "label": "dashboard",
+        "title": "Peeky Dashboard",
+        "url": "index.html#/dashboard",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 920,
+        "minHeight": 660,
+        "visible": false,
+        "resizable": true,
+        "decorations": false,
+        "center": true,
+        "shadow": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' asset: data:; style-src 'self' 'unsafe-inline'; connect-src ipc: http://ipc.localhost"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis"],
+    "resources": {
+      "bin/WebView2Loader.dll": "WebView2Loader.dll"
+    },
+    "publisher": "Harsh Bhardwaj",
+    "copyright": "Copyright 2026 Harsh Bhardwaj",
+    "shortDescription": "A calm Windows break companion",
+    "longDescription": "Peeky schedules calm breaks and keeps an optional local journal of foreground activity in two-hour sessions.",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "startMenuFolder": "Peeky",
+        "installerHooks": "nsis/hooks.nsh"
+      }
+    }
+  }
+}

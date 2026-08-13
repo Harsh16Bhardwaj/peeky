@@ -1,0 +1,8 @@
+!macro NSIS_HOOK_POSTINSTALL
+!macroend
+
+!macro NSIS_HOOK_PREUNINSTALL
+  MessageBox MB_YESNO|MB_DEFBUTTON1 "Delete local Peeky activity history and settings?" IDNO keep_peeky_data
+    RMDir /r "$LOCALAPPDATA\Peeky"
+  keep_peeky_data:
+!macroend

@@ -1,0 +1,42 @@
+[package]
+name = "peeky"
+version = "2.1.0"
+description = "A calm Windows break companion and local activity journal"
+authors = ["Harsh Bhardwaj"]
+edition = "2021"
+default-run = "Peeky"
+
+[lib]
+name = "peeky_lib"
+crate-type = ["rlib"]
+
+[[bin]]
+name = "Peeky"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+chrono = { version = "0.4", features = ["serde"] }
+peeky-core = { path = "crates/peeky-core" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-autostart = "2"
+tauri-plugin-clipboard-manager = "2"
+tauri-plugin-notification = "2"
+tauri-winrt-notification = "0.7.3"
+tauri-plugin-single-instance = "2"
+thiserror = "2"
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_System_SystemInformation",
+  "Win32_System_StationsAndDesktops",
+  "Win32_System_Threading",
+  "Win32_UI_Accessibility",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_Storage_FileSystem"
+] }
