@@ -1120,3 +1120,166 @@ body, main, .subpage, .download-page, .privacy-policy-page { color: var(--ink); 
 .privacy-boundary { background: var(--panel); }
 .privacy-boundary__stored { color: #f6f3ec; background: var(--dark); }
 .policy-download { border-color: var(--line); background: var(--paper-2); }
+
+.download-assurance, .policy-download { padding: 0; }
+.download-assurance .shell, .policy-download .shell { min-height: 92px; }
+.download-assurance .shell > div, .policy-download .shell > div { min-width: 0; display: flex; align-items: center; gap: 12px; }
+.download-assurance .shell > div > span, .policy-download .shell > div > span { min-width: 0; display: flex; flex-direction: column; }
+.download-assurance .app-mark, .policy-download .app-mark { flex: 0 0 34px; }
+.download-assurance strong, .policy-download strong { font-size: 13px; line-height: 1.25; }
+.download-assurance small, .policy-download small { margin-top: 4px; font-size: 9px; line-height: 1.4; }
+
+/* Purpose-built phone layout: fluid previews, consistent gutters, and faster reveals. */
+@media (max-width: 680px) {
+  html { scroll-padding-top: 68px; }
+  .shell { width: calc(100% - 32px); }
+
+  .site-header__inner { height: 66px; gap: 12px; }
+  .brand { gap: 8px; font-size: 18px; }
+  .brand .app-mark { width: 32px; height: 32px; }
+  .button--nav { min-height: 38px; padding-inline: 14px; font-size: 12px; }
+
+  .hero { padding-top: 100px; }
+  .hero-grid { min-height: 0; gap: 28px; }
+  .hero-copy { width: 100%; padding-bottom: 0; }
+  .eyebrow { max-width: 100%; padding: 8px 10px; font-size: 9px; }
+  .hero h1 { max-width: 330px; margin: 22px auto 18px; font-size: 43px; line-height: .98; }
+  .hero-lede { max-width: 330px; font-size: 15px; line-height: 1.6; }
+  .hero-actions { width: 100%; max-width: 340px; margin: 27px auto 0; gap: 11px; }
+  .hero-actions .button { min-height: 52px; }
+  .download-note { max-width: 310px; margin: 17px auto 0; justify-content: center; gap: 8px 12px; font-size: 10px; }
+  .hero-stage { width: 100%; min-height: 490px; margin: 4px auto -18px; transform: none; }
+  .app-window--hero { width: min(100%, 340px); }
+  .pulse-ring--one { width: 390px; }
+  .pulse-ring--two { width: 470px; }
+  .orbit-badge--blink { left: -7px; top: 92px; }
+  .orbit-badge--walk { right: -7px; top: 145px; }
+  .mini-toast { right: 0; bottom: 44px; }
+
+  .product-signal__inner { grid-template-columns: 1fr 1fr; gap: 18px 10px; padding-block: 24px; }
+  .product-signal__inner > div { min-width: 0; }
+  .product-signal strong { font-size: 12px; }
+
+  .section { padding: 66px 0; }
+  .section-heading, .split-heading, .feature-ledger__intro, .faq-heading { max-width: 340px; margin-inline: auto; text-align: center; }
+  .section-heading h2 { margin-top: 13px; font-size: 39px; line-height: 1.02; }
+  .section-heading p, .split-heading > p { font-size: 15px; line-height: 1.6; }
+  .split-heading { gap: 18px; }
+  .split-heading > p { padding-bottom: 0; }
+
+  .break-rhythm { margin-top: 34px; gap: 6px; }
+  .break-step { padding: 12px 4px; }
+  .step-icon { width: 58px; height: 58px; margin: 11px auto 13px; border-width: 6px; }
+  .break-step h3 { font-size: 16px; }
+  .break-step p { font-size: 11px; }
+  .rhythm-map { margin-top: 32px; border-radius: 8px; }
+  .rhythm-event { min-height: 132px; border-radius: 8px; }
+
+  .bento-grid { margin-top: 38px; gap: 14px; }
+  .bento-pair { gap: 14px; }
+  .bento-card, .bento-card--wide { min-height: 0; padding: 22px; border-radius: 8px; }
+  .bento-card h3 { font-size: 25px; }
+  .bento-card--visual { min-height: 410px; }
+  .bento-card--screen { min-height: 500px; }
+  .bento-card--overlay, .bento-card--local { min-height: 520px; }
+  .feature-ledger { margin-top: 52px; padding-top: 36px; gap: 30px; }
+  .feature-ledger__grid { border-radius: 8px; overflow: hidden; }
+  .feature-detail { min-height: 178px; padding: 23px; }
+  .feature-detail h4 { margin-top: 28px; }
+
+  .experience-section { padding: 70px 0 58px; }
+  .experience-grid { gap: 38px; }
+  .experience-copy { max-width: 340px; }
+  .experience-copy h2 { font-size: 40px; }
+  .experience-copy > p { font-size: 15px; line-height: 1.6; }
+  .experience-points { width: fit-content; max-width: 100%; margin-top: 24px; }
+  .overlay-demo { min-height: 475px; padding: 16px; border-radius: 8px; }
+  .overlay-demo__center h3 { font-size: 34px; }
+  .overlay-demo__bottom > span { padding-inline: 10px; }
+  .workday-flow { margin-top: 40px; }
+
+  .tour-grid { margin-top: 38px; gap: 14px; }
+  .tour-card { min-height: 0; padding: 24px 18px 0; border-radius: 8px; text-align: center; }
+  .tour-card > div:first-child { min-height: 150px; }
+  .tour-card h3 { font-size: 25px; }
+  .tour-image, .tour-card--settings .tour-image { width: 100%; height: 300px; margin-inline: auto; border-width: 5px; border-radius: 8px 8px 0 0; }
+  .tour-image img, .tour-card--settings .tour-image img { width: 100%; max-width: 100%; height: auto; }
+
+  .privacy-strip__inner { min-height: 0; padding: 24px 0; display: flex; flex-direction: column; gap: 12px; text-align: center; }
+  .privacy-strip p { max-width: 330px; font-size: 11px; line-height: 1.55; }
+  .privacy-strip__inner .text-link { align-self: center; }
+  .faq-layout { gap: 30px; }
+  .faq-heading h2 { font-size: 40px; }
+  .faq-note, .faq-stamp { margin-inline: auto; }
+  .faq-list summary { min-height: 68px; grid-template-columns: 25px minmax(0, 1fr) 30px; gap: 8px; }
+  .faq-list details p { margin: 0 34px 22px 33px; }
+
+  .download-cta__inner { min-height: 420px; padding: 62px 16px; }
+  .download-cta h2 { max-width: 330px; font-size: 40px; }
+  .download-cta p { max-width: 320px; font-size: 15px; }
+  .download-cta .hero-actions { width: 100%; }
+
+  .download-hero { padding: 30px 0 54px; }
+  .download-hero__grid { gap: 34px; }
+  .download-breadcrumb { margin-bottom: 30px; justify-content: center; }
+  .download-hero__copy { text-align: center; }
+  .download-hero h1 { max-width: 340px; margin: 13px auto 17px; font-size: 43px; line-height: .98; }
+  .download-hero__copy > p { max-width: 340px; margin-inline: auto; font-size: 15px; }
+  .download-hero__facts { justify-content: center; gap: 9px 14px; }
+  .download-hero__visual { width: 100%; min-height: 285px; margin: 0 auto; transform: none; }
+  .download-orbit--one { width: 285px; height: 285px; }
+  .download-orbit--two { width: 205px; height: 205px; }
+  .download-mini-window { width: min(100%, 315px); border-radius: 8px; transform: rotate(1.5deg); }
+  .download-floating-tag { right: 0; bottom: 20px; }
+  .download-choice { padding: 60px 0; }
+  .download-choice__heading { margin-bottom: 28px; text-align: center; }
+  .download-choice__heading p { margin-inline: auto; }
+  .release-card { padding: 23px; border-radius: 8px; }
+  .release-card__top, .release-card h3, .release-card > p { text-align: center; }
+  .release-card__icon { margin-inline: auto; }
+  .release-integrity { align-items: center; padding: 18px; text-align: center; }
+  .release-integrity > div { flex-direction: column; }
+  .what-next { padding: 62px 0; }
+  .what-next__grid { gap: 32px; }
+  .what-next__lead { text-align: center; }
+  .what-next__lead h2 { font-size: 38px; }
+  .install-steps--new li { border-radius: 8px; }
+  .download-specs .shell > div { justify-content: center; text-align: left; }
+  .download-assurance .shell { min-height: 0; padding-block: 24px; align-items: stretch; text-align: left; }
+  .download-assurance .shell > div { flex-direction: row; justify-content: center; }
+  .download-assurance .text-link { min-height: 44px; justify-content: center; border-top: 1px solid var(--line); }
+
+  .policy-hero__copy, .policy-summary { text-align: center; }
+  .policy-breadcrumb { justify-content: center; }
+  .policy-hero h1 { font-size: 43px; }
+  .policy-hero__copy > p { margin-inline: auto; }
+  .policy-meta { justify-content: center; }
+  .policy-summary { margin-inline: auto; }
+  .policy-summary li { text-align: left; }
+  .policy-layout { padding-top: 40px; }
+  .policy-download .shell { min-height: 0; padding-block: 24px; align-items: stretch; text-align: left; }
+  .policy-download .shell > div { flex-direction: row; justify-content: center; }
+  .policy-download .button { width: 100%; }
+
+  .footer-top { gap: 20px; }
+  .footer-brand { align-items: center; }
+  .footer-links { gap: 18px; }
+  .footer-bottom { text-align: center; }
+
+  [data-reveal] [data-motion-item], [data-reveal-item] {
+    transition-duration: .4s;
+    transition-delay: calc(var(--motion-index, 0) * 30ms + 30ms);
+  }
+}
+
+@media (max-width: 360px) {
+  .shell { width: calc(100% - 24px); }
+  .button--nav { padding-inline: 12px; }
+  .hero h1, .download-hero h1, .policy-hero h1 { font-size: 40px; }
+  .hero-stage { min-height: 455px; }
+  .app-window--hero { width: 300px; }
+  .orbit-badge { padding: 7px 9px; font-size: 10px; }
+  .download-note { font-size: 9px; }
+  .section-heading h2, .experience-copy h2, .faq-heading h2, .download-cta h2 { font-size: 37px; }
+  .release-card { padding: 20px; }
+}

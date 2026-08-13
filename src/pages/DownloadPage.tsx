@@ -63,7 +63,7 @@ export function DownloadPage() {
 
       <section className="download-specs"><div className="shell"><div><HardDrive size={19} /><span><strong>System requirements</strong><small>Windows 10 or 11 · 64-bit PC</small></span></div><div><FolderOpen size={19} /><span><strong>What gets installed</strong><small>Peeky and its local settings folder</small></span></div><div><ShieldCheck size={19} /><span><strong>What does not happen</strong><small>No account, cloud sync, or telemetry</small></span></div></div></section>
 
-      <section className="download-assurance"><div className="shell"><div><AppMark size="medium" /><span><strong>Peeky stays small by design.</strong><small>Its job is to remind you to blink, look away, adjust, and move. Nothing else needs your attention.</small></span></div><a className="text-link" href="/privacy/">Read the privacy policy <ChevronRight size={16} /></a></div></section>
+      <section className="download-assurance"><div className="shell"><div><AppMark size="small" /><span><strong>Peeky stays small by design.</strong><small>Its job is to remind you to blink, look away, adjust, and move. Nothing else needs your attention.</small></span></div><a className="text-link" href="/privacy/">Read the privacy policy <ChevronRight size={16} /></a></div></section>
       <SiteFooter />
     </main>
   );
