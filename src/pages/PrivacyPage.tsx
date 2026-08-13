@@ -152,7 +152,7 @@ export function PrivacyPage() {
         </article>
       </div>
 
-      <section className="policy-download"><div className="shell"><div><AppMark size="small" /><span><strong>Ready for calmer screen time?</strong><small>Windows 10/11 · No account required</small></span></div><a className="button button--dark" href="/download/">Download Peeky</a></div></section>
+      <section className="policy-download"><div className="shell"><div><span><strong>Ready for calmer screen time?</strong><small>Windows 10/11 · No account required</small></span></div><a className="button button--dark" href="/download/">Download Peeky</a></div></section>
       <SiteFooter />
     </main>
   );
