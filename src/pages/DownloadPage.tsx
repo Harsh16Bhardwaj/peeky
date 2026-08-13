@@ -13,7 +13,7 @@ export function DownloadPage() {
           <div className="download-hero__copy">
             <div className="download-breadcrumb"><a href="/">Peeky</a><span>/</span><strong>Download</strong></div>
             <span className="kicker">PEEKY FOR WINDOWS</span>
-            <h1>Take a better<br />break today.</h1>
+            <h1>Download Peeky.<br />Take a better break.</h1>
             <p>Peeky is a small Windows companion that turns a long screen day into a rhythm of blink, look-away, posture, and walking breaks.</p>
             <div className="download-hero__facts"><span><Check size={15} /> Free to download</span><span><Check size={15} /> No account</span><span><Check size={15} /> Works offline</span></div>
           </div>

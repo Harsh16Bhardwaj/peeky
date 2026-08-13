@@ -4,20 +4,44 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("builds all three static pages", async () => {
-  const [home, download, privacy] = await Promise.all([
+test("builds all seven crawlable pages", async () => {
+  const [home, download, features, about, privacy, terms, contact] = await Promise.all([
     readFile(new URL("dist/index.html", root), "utf8"),
     readFile(new URL("dist/download/index.html", root), "utf8"),
+    readFile(new URL("dist/features/index.html", root), "utf8"),
+    readFile(new URL("dist/about/index.html", root), "utf8"),
     readFile(new URL("dist/privacy/index.html", root), "utf8"),
+    readFile(new URL("dist/terms/index.html", root), "utf8"),
+    readFile(new URL("dist/contact/index.html", root), "utf8"),
   ]);
 
-  assert.match(home, /Peeky - A calmer way to use your screen/);
+  assert.match(home, /Peeky — Screen Time & Break Reminders for Windows/);
   assert.match(home, /canonical/);
   assert.match(home, /Your screen is intense/);
   assert.match(download, /Download Peeky for Windows/);
-  assert.match(download, /Take a better/);
-  assert.match(privacy, /Privacy Policy - Peeky/);
+  assert.match(download, /Download Peeky/);
+  assert.match(features, /Peeky Features/);
+  assert.match(about, /About Peeky/);
+  assert.match(privacy, /Peeky Privacy Policy/);
   assert.match(privacy, /What Peeky stores/);
+  assert.match(terms, /Peeky Terms of Use/);
+  assert.match(contact, /Contact Peeky/);
+});
+
+test("publishes an open robots policy and every canonical sitemap URL", async () => {
+  const [robots, sitemap, home] = await Promise.all([
+    readFile(new URL("dist/robots.txt", root), "utf8"),
+    readFile(new URL("dist/sitemap.xml", root), "utf8"),
+    readFile(new URL("dist/index.html", root), "utf8"),
+  ]);
+
+  assert.match(robots, /User-agent: \*/);
+  assert.match(robots, /Allow: \/(?:\r?\n|$)/);
+  assert.doesNotMatch(robots, /Disallow: \/(?:\r?\n|$)/);
+  assert.doesNotMatch(home, /noindex/i);
+  for (const path of ["/", "/download/", "/features/", "/about/", "/privacy/", "/terms/", "/contact/"]) {
+    assert.match(sitemap, new RegExp(`<loc>https://www\\.thisispeeky\\.com${path.replaceAll("/", "\\/")}</loc>`));
+  }
 });
 
 test("copies release artifacts into the self-hostable build", async () => {
