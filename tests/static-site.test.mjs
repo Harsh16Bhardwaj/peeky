@@ -15,7 +15,7 @@ test("builds all seven crawlable pages", async () => {
     readFile(new URL("dist/contact/index.html", root), "utf8"),
   ]);
 
-  assert.match(home, /Peeky — Screen Time & Break Reminders for Windows/);
+  assert.match(home, /Peeky: Screen Time & Break Reminders for Windows/);
   assert.match(home, /canonical/);
   assert.match(home, /Your screen is intense/);
   assert.match(download, /Download Peeky for Windows/);
