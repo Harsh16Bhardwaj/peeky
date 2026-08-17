@@ -2,6 +2,7 @@ import { Check, ChevronRight, CircleCheck, Clock3, Download, FileArchive, FileCh
 import { AppMark } from "../components/AppMark";
 import { SiteFooter } from "../components/SiteFooter";
 import { SiteHeader } from "../components/SiteHeader";
+import { TrackedDownloadLink } from "../components/DownloadCounter";
 
 export function DownloadPage() {
   return (
@@ -34,16 +35,16 @@ export function DownloadPage() {
               <h3>Windows installer</h3>
               <p>Adds Peeky to your Start Menu, can launch it with Windows, and keeps the desktop experience simple.</p>
               <ul><li><CircleCheck size={16} /> Setup wizard</li><li><CircleCheck size={16} /> Start Menu entry</li><li><CircleCheck size={16} /> Optional launch at startup</li></ul>
-              <a className="button button--dark button--full" href="/downloads/Peeky-Setup-x64.exe" download><Download size={18} /> Download for Windows</a>
-              <div className="release-card__file"><span>Peeky-Setup-x64.exe</span><span>v2.0.0 · 6.5 MB</span></div>
+              <TrackedDownloadLink className="button button--dark button--full" href="/downloads/Peeky-Setup-x64.exe" download><Download size={18} /> Download for Windows</TrackedDownloadLink>
+              <div className="release-card__file"><span>Peeky-Setup-x64.exe</span><span>v2.1.1 · 6.5 MB</span></div>
             </article>
             <article className="release-card">
               <div className="release-card__top"><span className="release-card__label">NO INSTALL</span><div className="release-card__icon release-card__icon--sun"><FileArchive size={28} /></div></div>
               <h3>Portable edition</h3>
               <p>Download a ZIP, extract it anywhere you have access, and run Peeky.exe. Useful for a USB drive or managed PC.</p>
               <ul><li><CircleCheck size={16} /> No installation required</li><li><CircleCheck size={16} /> Extract and run</li><li><CircleCheck size={16} /> Keeps files together</li></ul>
-              <a className="button button--outline button--full" href="/downloads/Peeky-Portable-x64.zip" download><PackageOpen size={18} /> Download portable ZIP</a>
-              <div className="release-card__file"><span>Peeky-Portable-x64.zip</span><span>v2.0.0 · 9.2 MB</span></div>
+              <TrackedDownloadLink className="button button--outline button--full" href="/downloads/Peeky-Portable-x64.zip" download><PackageOpen size={18} /> Download portable ZIP</TrackedDownloadLink>
+              <div className="release-card__file"><span>Peeky-Portable-x64.zip</span><span>v2.1.1 · 9.3 MB</span></div>
             </article>
           </div>
           <div className="release-integrity"><div><ShieldCheck size={22} /><span><strong>Verify the release if you need to</strong><small>SHA-256 checksums are published alongside every downloadable file.</small></span></div><a className="text-link" href="/downloads/SHA256SUMS.txt" download><FileCheck2 size={16} /> Get checksums</a></div>

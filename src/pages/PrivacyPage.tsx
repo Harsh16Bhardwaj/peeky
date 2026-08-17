@@ -45,7 +45,7 @@ export function PrivacyPage() {
             <span className="policy-label"><FileText size={15} /> PRODUCT POLICY</span>
             <h1>Privacy Policy</h1>
             <p>What Peeky stores, what it deliberately cannot see, and the controls available to you.</p>
-            <div className="policy-meta"><span><small>Effective</small><strong>13 August 2026</strong></span><span><small>Applies to</small><strong>Peeky 2.0.0</strong></span><span><small>Policy version</small><strong>1.0</strong></span></div>
+            <div className="policy-meta"><span><small>Effective</small><strong>18 August 2026</strong></span><span><small>Applies to</small><strong>Peeky 2.1.1</strong></span><span><small>Policy version</small><strong>1.0</strong></span></div>
           </div>
           <aside className="policy-summary" aria-label="Privacy summary">
             <div className="policy-summary__head"><AppMark size="small" /><div><strong>Plain-language summary</strong><span>Desktop app</span></div></div>
@@ -70,7 +70,7 @@ export function PrivacyPage() {
           <a href="#network">6. Network and third parties</a>
           <a href="#controls">7. Your controls</a>
           <a href="#changes">8. Policy changes</a>
-          <div className="policy-toc__status"><ShieldCheck size={16} /><span><strong>Local-first release</strong><small>Peeky 2.0.0</small></span></div>
+          <div className="policy-toc__status"><ShieldCheck size={16} /><span><strong>Local-first release</strong><small>Peeky 2.1.1</small></span></div>
         </aside>
 
         <article className="policy-document">
@@ -147,7 +147,7 @@ export function PrivacyPage() {
           <section id="changes">
             <span className="policy-section-number">08</span>
             <h2>Policy changes</h2>
-            <p>If Peeky’s data practices change, this page should be updated with a new effective date and policy version. A future feature that sends data off-device would require an explicit revision to this policy; it is not part of Peeky 2.0.0.</p>
+            <p>If Peeky’s data practices change, this page should be updated with a new effective date and policy version. A future feature that sends data off-device would require an explicit revision to this policy; it is not part of Peeky 2.1.1.</p>
           </section>
         </article>
       </div>

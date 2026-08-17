@@ -683,6 +683,8 @@ main, .subpage { position: relative; z-index: 1; }
 .release-card li svg { color: var(--mint-deep); }
 .release-card--recommended li svg { color: var(--mint); }
 .button--full { width: 100%; justify-content: center; margin-top: 28px; }
+.download-action { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
+.download-action__count { color: #7a877f; font-family: var(--font-geist-mono), monospace; font-size: 10px; letter-spacing: .04em; text-align: center; }
 .release-card--recommended .button--dark { color: #17201c; background: var(--mint); }
 .release-card--recommended .button--dark:hover { background: #8de5c5; }
 .release-card__file { margin-top: 13px; display: flex; justify-content: space-between; gap: 10px; color: #8c9991; font-family: var(--font-geist-mono), monospace; font-size: 8px; }
