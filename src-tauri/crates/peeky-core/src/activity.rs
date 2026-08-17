@@ -169,6 +169,15 @@ pub struct SessionReview {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct SessionClassification {
+    pub source_id: i64,
+    pub category: ActivityCategory,
+    pub use_next_time: bool,
+    pub domain_wide: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DailyActivitySummary {
     pub local_date: String,
     pub category_totals: BTreeMap<String, f64>,
@@ -679,6 +688,68 @@ impl ActivityRepository {
             save_rule_for_source(&tx, source_id, &category, domain_wide, now_epoch_ms)?;
         }
         update_review_status(&tx, session_id)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn complete_session_review(
+        &self,
+        session_id: &str,
+        classifications: &[SessionClassification],
+        now_epoch_ms: i64,
+    ) -> Result<(), ActivityError> {
+        let mut connection = self.connect()?;
+        let tx = connection.transaction()?;
+        let status = tx
+            .query_row(
+                "SELECT status FROM activity_sessions WHERE id=?1",
+                params![session_id],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()?
+            .ok_or_else(|| ActivityError::Data("Activity session not found".into()))?;
+        if status == "active" {
+            return Err(ActivityError::Data(
+                "The current session can be reviewed after it is complete".into(),
+            ));
+        }
+
+        for classification in classifications {
+            let changed = tx.execute(
+                "UPDATE activity_segments SET classification=?3
+                 WHERE session_id=?1 AND source_id=?2",
+                params![
+                    session_id,
+                    classification.source_id,
+                    classification.category.as_str()
+                ],
+            )?;
+            if changed == 0 {
+                return Err(ActivityError::Data(
+                    "An activity no longer belongs to this session".into(),
+                ));
+            }
+            if classification.use_next_time {
+                save_rule_for_source(
+                    &tx,
+                    classification.source_id,
+                    &classification.category,
+                    classification.domain_wide,
+                    now_epoch_ms,
+                )?;
+            }
+        }
+
+        let pending = qualifying_unclassified_count(&tx, session_id)?;
+        if pending > 0 {
+            return Err(ActivityError::Data(
+                "Choose a category for every meaningful activity".into(),
+            ));
+        }
+        tx.execute(
+            "UPDATE activity_sessions SET review_status='reviewed' WHERE id=?1",
+            params![session_id],
+        )?;
         tx.commit()?;
         Ok(())
     }
@@ -1340,14 +1411,7 @@ fn save_rule_for_source(
 }
 
 fn update_review_status(tx: &Transaction<'_>, session_id: &str) -> Result<(), ActivityError> {
-    let pending = tx.query_row(
-        "SELECT COUNT(*) FROM (
-            SELECT source_id FROM activity_segments WHERE session_id=?1 AND source_id IS NOT NULL
-            GROUP BY source_id HAVING SUM(duration_secs)>=?2 AND MAX(classification) IS NULL
-         )",
-        params![session_id, REVIEW_THRESHOLD_SECS],
-        |row| row.get::<_, i64>(0),
-    )?;
+    let pending = qualifying_unclassified_count(tx, session_id)?;
     tx.execute(
         "UPDATE activity_sessions SET review_status=?2 WHERE id=?1",
         params![
@@ -1356,6 +1420,20 @@ fn update_review_status(tx: &Transaction<'_>, session_id: &str) -> Result<(), Ac
         ],
     )?;
     Ok(())
+}
+
+fn qualifying_unclassified_count(
+    tx: &Transaction<'_>,
+    session_id: &str,
+) -> Result<i64, ActivityError> {
+    Ok(tx.query_row(
+        "SELECT COUNT(*) FROM (
+            SELECT source_id FROM activity_segments WHERE session_id=?1 AND source_id IS NOT NULL
+            GROUP BY source_id HAVING SUM(duration_secs)>=?2 AND MAX(classification) IS NULL
+         )",
+        params![session_id, REVIEW_THRESHOLD_SECS],
+        |row| row.get::<_, i64>(0),
+    )?)
 }
 
 fn load_or_create_identity_key(tx: &Transaction<'_>) -> Result<Vec<u8>, ActivityError> {
@@ -1640,6 +1718,111 @@ mod tests {
             .iter()
             .any(|session| session.status == "partial"));
         assert_eq!(engine.current_session().unwrap().local_date, "2026-08-13");
+    }
+
+    #[test]
+    fn short_partial_session_can_be_explicitly_reviewed() {
+        let repository = test_repository("review-short-partial");
+        let mut engine =
+            ActivityEngine::new(repository.clone(), settings(), 0, "2026-08-12").unwrap();
+        engine
+            .tick(ActivityTick {
+                now_epoch_ms: 1_000,
+                local_date: "2026-08-12".into(),
+                delta_secs: 1.0,
+                idle_secs: 0,
+                locked_or_sleeping: false,
+                break_active: false,
+                source: Some(app_source()),
+            })
+            .unwrap();
+        engine
+            .tick(ActivityTick {
+                now_epoch_ms: 2_000,
+                local_date: "2026-08-13".into(),
+                delta_secs: 1.0,
+                idle_secs: 0,
+                locked_or_sleeping: false,
+                break_active: false,
+                source: Some(app_source()),
+            })
+            .unwrap();
+
+        let partial = repository
+            .dashboard(90)
+            .unwrap()
+            .sessions
+            .into_iter()
+            .find(|session| session.local_date == "2026-08-12")
+            .unwrap();
+        repository
+            .complete_session_review(&partial.id, &[], 3_000)
+            .unwrap();
+
+        assert_eq!(
+            repository.session_review(&partial.id).unwrap().session.review_status,
+            "reviewed"
+        );
+        assert_eq!(repository.pending_reviews().unwrap(), 0);
+    }
+
+    #[test]
+    fn meaningful_activity_requires_context_before_session_review() {
+        let repository = test_repository("review-meaningful");
+        let mut engine =
+            ActivityEngine::new(repository.clone(), settings(), 0, "2026-08-12").unwrap();
+        for second in 1..=180 {
+            engine
+                .tick(ActivityTick {
+                    now_epoch_ms: second * 1_000,
+                    local_date: "2026-08-12".into(),
+                    delta_secs: 1.0,
+                    idle_secs: 0,
+                    locked_or_sleeping: false,
+                    break_active: false,
+                    source: Some(app_source()),
+                })
+                .unwrap();
+        }
+        engine
+            .tick(ActivityTick {
+                now_epoch_ms: 181_000,
+                local_date: "2026-08-13".into(),
+                delta_secs: 1.0,
+                idle_secs: 0,
+                locked_or_sleeping: false,
+                break_active: false,
+                source: Some(app_source()),
+            })
+            .unwrap();
+
+        let partial = repository
+            .dashboard(90)
+            .unwrap()
+            .sessions
+            .into_iter()
+            .find(|session| session.local_date == "2026-08-12")
+            .unwrap();
+        let review = repository.session_review(&partial.id).unwrap();
+        assert!(repository
+            .complete_session_review(&partial.id, &[], 182_000)
+            .is_err());
+
+        repository
+            .complete_session_review(
+                &partial.id,
+                &[SessionClassification {
+                    source_id: review.activities[0].source.id,
+                    category: ActivityCategory::Productive,
+                    use_next_time: false,
+                    domain_wide: false,
+                }],
+                182_000,
+            )
+            .unwrap();
+        let reviewed = repository.session_review(&partial.id).unwrap();
+        assert_eq!(reviewed.session.review_status, "reviewed");
+        assert_eq!(reviewed.activities[0].category, Some(ActivityCategory::Productive));
     }
 
     #[test]

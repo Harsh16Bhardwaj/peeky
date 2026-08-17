@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 - 2026-08-18
+
+- Restored focus to the last active non-Peeky window when a break completes, is skipped, snoozed, or ended early.
+- Added a single session-review action with review history for completed activity sessions.
+- Kept settings saves resilient when Windows autostart registration is unavailable.
+
 ## 2.0.0 - 2026-08-13
 
 - Added always-on break flood protection with a four-active-minute look-ahead window.

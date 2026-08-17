@@ -293,7 +293,7 @@
   min-height: 59px;
   padding: 9px;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) 72px 120px 116px 96px 72px;
+  grid-template-columns: minmax(220px, 1fr) 72px 140px 126px;
   align-items: center;
   gap: 9px;
   border: 1px solid var(--line);
@@ -301,7 +301,6 @@
   border-radius: 6px;
   background: var(--paper);
 }
-.button--save-classification { height: 32px; padding: 0 8px; gap: 4px; color: #176f55; border: 1px solid var(--mint); background: var(--mint-soft); font-size: 10px; font-weight: 800; }
 .activity-review-card__identity { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .source-mark { width: 35px; height: 29px; flex: 0 0 auto; display: grid; place-items: center; border: 1px solid var(--line); color: var(--muted); font-size: 8px; font-weight: 800; }
 .activity-review-card__identity > div { min-width: 0; display: flex; flex-direction: column; }
@@ -313,6 +312,22 @@
 .compact-check input { accent-color: var(--mint); }
 .short-activity-summary { margin-top: 12px; padding: 10px; display: flex; align-items: center; gap: 8px; color: var(--muted); background: var(--panel-subtle); font-size: 11px; }
 .short-activity-summary strong { margin-left: auto; color: var(--ink); }
+.session-review-footer { min-height: 62px; margin-top: 14px; padding-top: 14px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border-top: 1px solid var(--line); }
+.session-review-footer > div { display: flex; flex-direction: column; gap: 3px; color: var(--muted); font-size: 10px; }
+.session-review-footer > div strong { color: var(--mint); }
+.session-review-footer .button { min-width: 205px; }
+
+.reviewed-session-archive { padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
+.reviewed-session-archive > header { margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; color: var(--muted); }
+.reviewed-session-archive h2 { margin: 3px 0 0; color: var(--ink); font-size: 16px; }
+.reviewed-session-archive__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 8px; }
+.reviewed-session-archive__list button { min-height: 55px; padding: 9px 11px; display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--ink); background: var(--paper); text-align: left; }
+.reviewed-session-archive__list button:hover,
+.reviewed-session-archive__list button.is-active { border-color: var(--sky); background: var(--sky-soft); }
+.reviewed-session-archive__list button > span:first-child { display: flex; flex-direction: column; gap: 3px; }
+.reviewed-session-archive__list strong { font-size: 11px; }
+.reviewed-session-archive__list small,
+.reviewed-session-archive__list button > span:last-child { color: var(--muted); font-size: 9px; text-transform: capitalize; }
 
 .metric-strip { display: grid; grid-template-columns: repeat(4, minmax(130px, 1fr)); border: 1px solid var(--line); background: var(--panel); }
 .metric { min-height: 82px; padding: 14px 17px; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--line); }
@@ -351,8 +366,15 @@
 @media (max-width: 1040px) {
   .session-summary { grid-template-columns: 140px 1fr; }
   .session-summary .category-totals { grid-column: 1 / -1; }
-  .activity-review-card { grid-template-columns: minmax(190px, 1fr) 65px 110px 105px 72px; }
-  .activity-review-card > :nth-child(5) { display: none; }
+  .activity-review-card { grid-template-columns: minmax(190px, 1fr) 65px 120px 110px; }
+}
+
+@media (max-width: 760px) {
+  .activity-review-card { grid-template-columns: minmax(0, 1fr) auto; }
+  .activity-review-card select,
+  .activity-review-card .compact-check { grid-column: 1 / -1; }
+  .session-review-footer { align-items: stretch; flex-direction: column; }
+  .session-review-footer .button { width: 100%; min-width: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

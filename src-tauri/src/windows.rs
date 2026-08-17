@@ -6,6 +6,7 @@ use tauri::{
 use crate::platform;
 
 pub fn show_quick_panel(app: &AppHandle<Wry>) -> Result<(), String> {
+    platform::remember_current_external_window();
     let window = app
         .get_webview_window("quick")
         .ok_or_else(|| "Quick panel window is unavailable".to_string())?;
@@ -27,6 +28,7 @@ pub fn toggle_quick_panel(app: &AppHandle<Wry>) -> Result<(), String> {
 }
 
 pub fn show_settings(app: &AppHandle<Wry>) -> Result<(), String> {
+    platform::remember_current_external_window();
     let window = app
         .get_webview_window("settings")
         .ok_or_else(|| "Settings window is unavailable".to_string())?;
@@ -38,6 +40,7 @@ pub fn show_settings(app: &AppHandle<Wry>) -> Result<(), String> {
 }
 
 pub fn show_dashboard(app: &AppHandle<Wry>) -> Result<(), String> {
+    platform::remember_current_external_window();
     let window = app
         .get_webview_window("dashboard")
         .ok_or_else(|| "Dashboard window is unavailable".to_string())?;
@@ -48,6 +51,7 @@ pub fn show_dashboard(app: &AppHandle<Wry>) -> Result<(), String> {
 }
 
 pub fn show_warning(app: &AppHandle<Wry>) -> Result<(), String> {
+    platform::remember_current_external_window();
     let window = match app.get_webview_window("warning") {
         Some(window) => window,
         None => WebviewWindowBuilder::new(
@@ -79,6 +83,7 @@ pub fn close_warning(app: &AppHandle<Wry>) {
 }
 
 pub fn show_overlays(app: &AppHandle<Wry>) -> Result<(), String> {
+    platform::remember_current_external_window();
     close_overlays(app);
     let monitors = app.available_monitors().map_err(to_string)?;
     let cursor = platform::cursor_position();

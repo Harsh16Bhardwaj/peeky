@@ -13,8 +13,8 @@ use chrono::{Local, Utc};
 use peeky_core::{
     activity::{
         ActivityCategory, ActivityDashboard, ActivityEngine, ActivityRepository, ActivitySession,
-        ActivitySourceInput, ActivitySourceKind, ActivityTick, ClassificationRule, SessionReview,
-        TrackingStatus,
+        ActivitySourceInput, ActivitySourceKind, ActivityTick, ClassificationRule,
+        SessionClassification, SessionReview, TrackingStatus,
     },
     domain::{RuntimeSnapshot, Settings},
     persistence::Storage,
@@ -32,6 +32,7 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 pub struct PeekyState {
     scheduler: Mutex<Scheduler>,
     activity: Mutex<ActivityEngine>,
+    focus_restore_target: Mutex<Option<platform::FocusRestoreTarget>>,
     pub(crate) storage: Storage,
     exiting: AtomicBool,
 }
@@ -98,11 +99,19 @@ fn save_settings(
         .prune(settings.activity.retention_days)
         .map_err(|error| error.to_string())?;
 
-    let autostart = app.autolaunch();
-    if settings.experience.start_with_windows {
-        autostart.enable().map_err(|error| error.to_string())?;
-    } else {
-        autostart.disable().map_err(|error| error.to_string())?;
+    if old_settings.experience.start_with_windows != settings.experience.start_with_windows {
+        let autostart = app.autolaunch();
+        let result = if settings.experience.start_with_windows {
+            autostart.enable()
+        } else {
+            autostart.disable()
+        };
+        if let Err(error) = result {
+            let _ = state.storage.app_log(
+                "WARN",
+                &format!("Unable to update Windows autostart registration: {error}"),
+            );
+        }
     }
     emit_state(&app, &state);
     Ok(settings)
@@ -346,6 +355,29 @@ fn classify_activity(
 }
 
 #[tauri::command]
+fn complete_session_review(
+    app: AppHandle<Wry>,
+    state: State<'_, PeekyState>,
+    session_id: String,
+    classifications: Vec<SessionClassification>,
+) -> Result<(), String> {
+    let mut engine = state.activity.lock().map_err(|error| error.to_string())?;
+    engine
+        .repository()
+        .complete_session_review(&session_id, &classifications, now_epoch_ms())
+        .map_err(|error| error.to_string())?;
+    engine.clear_source_cache();
+    drop(engine);
+    let _ = state.storage.event(
+        "activity_session_reviewed",
+        json!({ "sessionId": session_id, "activities": classifications.len() }),
+    );
+    let _ = app.emit("review_status_changed", json!({ "sessionId": session_id }));
+    emit_activity_state(&app, &state);
+    Ok(())
+}
+
+#[tauri::command]
 fn save_classification_rule(
     state: State<'_, PeekyState>,
     source_id: i64,
@@ -449,6 +481,9 @@ fn process_events(
     state: &PeekyState,
     events: Vec<EngineEvent>,
 ) -> Result<(), String> {
+    let replacement_break_started = events
+        .iter()
+        .any(|event| matches!(event, EngineEvent::BreakStarted(_)));
     for event in &events {
         if let Some((event_type, payload)) = event.log_parts() {
             let _ = state.storage.event(event_type, payload);
@@ -465,8 +500,17 @@ fn process_events(
                 let _ = app.emit("break_warning", visible_warning);
             }
             EngineEvent::BreakStarted(active) => {
+                let restore_target = platform::last_external_foreground_window();
+                *state
+                    .focus_restore_target
+                    .lock()
+                    .map_err(|error| error.to_string())? = None;
                 windows::close_warning(app);
                 windows::show_overlays(app)?;
+                *state
+                    .focus_restore_target
+                    .lock()
+                    .map_err(|error| error.to_string())? = restore_target;
                 let visible_break = state
                     .scheduler
                     .lock()
@@ -497,7 +541,19 @@ fn process_events(
                 );
             }
             EngineEvent::WarningClosed => windows::close_warning(app),
-            EngineEvent::OverlaysClosed => windows::close_overlays(app),
+            EngineEvent::OverlaysClosed => {
+                windows::close_overlays(app);
+                let restore_target = state
+                    .focus_restore_target
+                    .lock()
+                    .map_err(|error| error.to_string())?
+                    .take();
+                if !replacement_break_started {
+                    if let Some(target) = restore_target {
+                        let _ = platform::restore_focus(target);
+                    }
+                }
+            }
             EngineEvent::Paused { .. }
             | EngineEvent::Resumed
             | EngineEvent::BreakBundled { .. }
@@ -875,6 +931,7 @@ pub fn run() {
             get_session_review,
             query_activity_dashboard,
             classify_activity,
+            complete_session_review,
             save_classification_rule,
             get_classification_rules,
             delete_classification_rule,
@@ -916,6 +973,7 @@ pub fn run() {
             let state = PeekyState {
                 scheduler: Mutex::new(Scheduler::new(settings, persisted)),
                 activity: Mutex::new(activity),
+                focus_restore_target: Mutex::new(None),
                 storage,
                 exiting: AtomicBool::new(false),
             };

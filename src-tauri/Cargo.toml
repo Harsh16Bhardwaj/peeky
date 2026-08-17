@@ -1,6 +1,6 @@
 [package]
 name = "peeky"
-version = "2.1.0"
+version = "2.1.1"
 description = "A calm Windows break companion and local activity journal"
 authors = ["Harsh Bhardwaj"]
 edition = "2021"

@@ -82,13 +82,97 @@ pub struct ForegroundApplication {
     pub display_name: String,
 }
 
+/// A top-level window outside the Peeky process that can receive focus again
+/// after a break overlay is dismissed. This is intentionally process-local and
+/// is never persisted because HWND values are only valid for a running session.
+#[derive(Debug, Clone, Copy)]
+pub struct FocusRestoreTarget(usize);
+
 #[cfg(windows)]
 static FOREGROUND_WINDOW: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(windows)]
+static LAST_EXTERNAL_WINDOW: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 #[cfg(windows)]
 static LAST_APPLICATION: std::sync::OnceLock<
     std::sync::Mutex<Option<(u32, ForegroundApplication)>>,
 > = std::sync::OnceLock::new();
+
+#[cfg(windows)]
+fn external_window_target(
+    hwnd: windows_sys::Win32::Foundation::HWND,
+) -> Option<FocusRestoreTarget> {
+    use windows_sys::Win32::{
+        System::Threading::GetCurrentProcessId,
+        UI::WindowsAndMessaging::{GetWindowThreadProcessId, IsWindow},
+    };
+
+    if hwnd.is_null() || unsafe { IsWindow(hwnd) } == 0 {
+        return None;
+    }
+    let mut process_id = 0;
+    unsafe { GetWindowThreadProcessId(hwnd, &mut process_id) };
+    (process_id != 0 && process_id != unsafe { GetCurrentProcessId() })
+        .then_some(FocusRestoreTarget(hwnd as usize))
+}
+
+#[cfg(windows)]
+fn remember_external_window(hwnd: windows_sys::Win32::Foundation::HWND) {
+    if let Some(target) = external_window_target(hwnd) {
+        LAST_EXTERNAL_WINDOW.store(target.0, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+/// Preserve the current external foreground window before Peeky brings one of
+/// its own windows forward.
+#[cfg(windows)]
+pub fn remember_current_external_window() {
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetForegroundWindow;
+    remember_external_window(unsafe { GetForegroundWindow() });
+}
+
+#[cfg(not(windows))]
+pub fn remember_current_external_window() {}
+
+/// Returns the most recently seen foreground window outside the Peeky process.
+#[cfg(windows)]
+pub fn last_external_foreground_window() -> Option<FocusRestoreTarget> {
+    remember_current_external_window();
+    let hwnd = LAST_EXTERNAL_WINDOW.load(std::sync::atomic::Ordering::Relaxed)
+        as windows_sys::Win32::Foundation::HWND;
+    external_window_target(hwnd)
+}
+
+#[cfg(not(windows))]
+pub fn last_external_foreground_window() -> Option<FocusRestoreTarget> {
+    None
+}
+
+/// Return focus only to a still-valid, visible window outside the Peeky process.
+#[cfg(windows)]
+pub fn restore_focus(target: FocusRestoreTarget) -> bool {
+    use windows_sys::Win32::{
+        Foundation::HWND,
+        UI::WindowsAndMessaging::{
+            IsIconic, IsWindowVisible, SetForegroundWindow, ShowWindow, SW_RESTORE,
+        },
+    };
+
+    let hwnd = target.0 as HWND;
+    if external_window_target(hwnd).is_none() || unsafe { IsWindowVisible(hwnd) } == 0 {
+        return false;
+    }
+    if unsafe { IsIconic(hwnd) } != 0 {
+        unsafe { ShowWindow(hwnd, SW_RESTORE) };
+    }
+    (unsafe { SetForegroundWindow(hwnd) }) != 0
+}
+
+#[cfg(not(windows))]
+pub fn restore_focus(_target: FocusRestoreTarget) -> bool {
+    false
+}
 
 #[cfg(windows)]
 pub fn start_foreground_monitor() {
@@ -113,6 +197,7 @@ pub fn start_foreground_monitor() {
         _time: u32,
     ) {
         FOREGROUND_WINDOW.store(hwnd as usize, std::sync::atomic::Ordering::Relaxed);
+        remember_external_window(hwnd);
     }
 
     std::thread::spawn(|| unsafe {
@@ -172,6 +257,7 @@ pub fn foreground_application() -> Option<ForegroundApplication> {
         return None;
     }
     FOREGROUND_WINDOW.store(hwnd as usize, std::sync::atomic::Ordering::Relaxed);
+    remember_external_window(hwnd);
     let mut pid = 0;
     unsafe { GetWindowThreadProcessId(hwnd, &mut pid) };
     if pid == 0 {

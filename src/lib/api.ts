@@ -7,6 +7,7 @@ import type {
   ClassificationRule,
   RuntimeSnapshot,
   SessionReview,
+  SessionClassification,
   Settings,
   TrackingStatus,
 } from "./types";
@@ -48,6 +49,8 @@ export const peekyApi = {
     useNextTime: boolean,
     domainWide: boolean,
   ) => invoke<void>("classify_activity", { sessionId, sourceId, category, useNextTime, domainWide }),
+  completeSessionReview: (sessionId: string, classifications: SessionClassification[]) =>
+    invoke<void>("complete_session_review", { sessionId, classifications }),
   saveClassificationRule: (sourceId: number, category: ActivityCategory, domainWide: boolean) =>
     invoke<void>("save_classification_rule", { sourceId, category, domainWide }),
   classificationRules: () => invoke<ClassificationRule[]>("get_classification_rules"),

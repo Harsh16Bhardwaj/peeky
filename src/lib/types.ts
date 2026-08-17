@@ -105,6 +105,13 @@ export interface SessionReview {
   pendingCount: number;
 }
 
+export interface SessionClassification {
+  sourceId: number;
+  category: ActivityCategory;
+  useNextTime: boolean;
+  domainWide: boolean;
+}
+
 export interface DailyActivitySummary {
   localDate: string;
   categoryTotals: Record<string, number>;

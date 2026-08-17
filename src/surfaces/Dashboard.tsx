@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Activity,
+  Archive,
   CalendarDays,
   Check,
   Clock3,
@@ -20,6 +21,7 @@ import type {
   ActivityDashboard,
   ActivitySession,
   SessionReview,
+  SessionClassification,
   TrackingStatus,
 } from "../lib/types";
 
@@ -38,6 +40,7 @@ export function Dashboard() {
   const [dashboard, setDashboard] = useState<ActivityDashboard | null>(null);
   const [review, setReview] = useState<SessionReview | null>(null);
   const [pendingSessions, setPendingSessions] = useState<ActivitySession[]>([]);
+  const [reviewedSessions, setReviewedSessions] = useState<ActivitySession[]>([]);
   const [selectedSessionId, setSelectedSessionId] = useState<string | null>(null);
   const selectedSessionRef = useRef<string | null>(null);
   const [tracking, setTracking] = useState<TrackingStatus | null>(null);
@@ -57,7 +60,9 @@ export function Dashboard() {
       setTracking(status);
       const reviewSource = history ?? summary;
       const pending = reviewSource.sessions.filter((session) => session.reviewStatus === "pending");
+      const reviewed = reviewSource.sessions.filter((session) => session.reviewStatus === "reviewed");
       setPendingSessions(pending);
+      setReviewedSessions(reviewed);
       const requested = selectedSessionRef.current;
       const requestedSession = requested ? reviewSource.sessions.find((session) => session.id === requested) : null;
       const target = requestedSession ?? current ?? pending[0] ?? summary.sessions[0] ?? null;
@@ -95,6 +100,9 @@ export function Dashboard() {
       setReview(await peekyApi.sessionReview(sessionId));
       setView("session");
       setMessage(null);
+      window.setTimeout(() => {
+        document.getElementById("session-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
     } catch (error) {
       setMessage(String(error));
     } finally {
@@ -128,17 +136,18 @@ export function Dashboard() {
 
       {message ? <div className="dashboard-message">{message}</div> : null}
       {loading ? <div className="surface-loading"><Activity size={24} /> Loading activity...</div> : null}
-      {!loading && view === "session" ? <SessionView review={review} tracking={tracking} pendingSessions={pendingSessions} selectedSessionId={selectedSessionId} openSession={openSession} reload={load} /> : null}
+      {!loading && view === "session" ? <SessionView review={review} tracking={tracking} pendingSessions={pendingSessions} reviewedSessions={reviewedSessions} selectedSessionId={selectedSessionId} openSession={openSession} reload={load} /> : null}
       {!loading && view === "today" && dashboard ? <TodayView dashboard={dashboard} pendingSessions={pendingSessions} openSession={openSession} /> : null}
       {!loading && view === "trends" && dashboard ? <TrendsView dashboard={dashboard} range={range} setRange={setRange} /> : null}
     </main>
   );
 }
 
-function SessionView({ review, tracking, pendingSessions, selectedSessionId, openSession, reload }: {
+function SessionView({ review, tracking, pendingSessions, reviewedSessions, selectedSessionId, openSession, reload }: {
   review: SessionReview | null;
   tracking: TrackingStatus | null;
   pendingSessions: ActivitySession[];
+  reviewedSessions: ActivitySession[];
   selectedSessionId: string | null;
   openSession: (sessionId: string) => Promise<void>;
   reload: () => Promise<void>;
@@ -177,57 +186,123 @@ function SessionView({ review, tracking, pendingSessions, selectedSessionId, ope
 
       <PendingReviewQueue sessions={pendingSessions} selectedSessionId={selectedSessionId} openSession={openSession} />
 
-      <section className="review-section">
-        <header><div><span className="eyebrow">Review at the bottom</span><h2>Mark this session</h2></div><span>Items aggregate after 3 minutes</span></header>
-        {review.activities.length ? (
-          <div className="activity-review-list">
-            {review.activities.map((activity) => (
-              <ActivityReviewCard key={activity.source.id} activity={activity} session={session} reload={reload} />
-            ))}
-          </div>
-        ) : <div className="inline-empty">No activity has reached three aggregate minutes in this session.</div>}
-        <div className="short-activity-summary"><TimerReset size={16} /><span>Short activity</span><strong>{formatDuration(Math.round(review.shortActivitySecs))}</strong></div>
-      </section>
+      <SessionReviewEditor review={review} reload={reload} />
+      <ReviewedSessionArchive sessions={reviewedSessions} selectedSessionId={selectedSessionId} openSession={openSession} />
     </div>
   );
 }
 
-function ActivityReviewCard({ activity, session, reload }: {
-  activity: ActivityAggregate;
-  session: ActivitySession;
-  reload: () => Promise<void>;
-}) {
-  const [category, setCategory] = useState<ActivityCategory>(activity.category ?? "neutral");
-  const [useNextTime, setUseNextTime] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const isLegacyChrome = activity.source.kind === "browser" || activity.source.executable?.toLowerCase() === "chrome.exe";
-  const sourceLabel = isLegacyChrome ? "Google Chrome" : activity.source.name;
-  const detail = isLegacyChrome ? "chrome.exe" : activity.source.executable;
+type ClassificationDraft = Record<number, { category: ActivityCategory | ""; useNextTime: boolean }>;
 
-  const save = async () => {
+function SessionReviewEditor({ review, reload }: { review: SessionReview; reload: () => Promise<void> }) {
+  const [draft, setDraft] = useState<ClassificationDraft>({});
+  const [saving, setSaving] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+  const session = review.session;
+
+  useEffect(() => {
+    setDraft(Object.fromEntries(review.activities.map((activity) => [activity.source.id, {
+      category: activity.category ?? "",
+      useNextTime: false,
+    }])));
+    setResult(null);
+  }, [review.session.id, review.activities]);
+
+  const missingCategories = review.activities.some((activity) => !draft[activity.source.id]?.category);
+  const canSubmit = session.status !== "active" && !missingCategories && !saving;
+
+  const submit = async () => {
+    if (!canSubmit) return;
     setSaving(true);
+    setResult(null);
+    const classifications: SessionClassification[] = review.activities.map((activity) => ({
+      sourceId: activity.source.id,
+      category: draft[activity.source.id].category as ActivityCategory,
+      useNextTime: draft[activity.source.id].useNextTime,
+      domainWide: false,
+    }));
     try {
-      await peekyApi.classifyActivity(session.id, activity.source.id, category, useNextTime, false);
+      await peekyApi.completeSessionReview(session.id, classifications);
+      setResult(session.reviewStatus === "reviewed" ? "Changes saved." : "Session reviewed and moved to history.");
       await reload();
+    } catch (error) {
+      setResult(String(error));
     } finally {
       setSaving(false);
     }
   };
 
   return (
-    <article className={`activity-review-card category-${activity.category ?? "unclassified"}`}>
+    <section className="review-section" id="session-review">
+      <header><div><span className="eyebrow">Session context</span><h2>{session.reviewStatus === "reviewed" ? "Review details" : "Review this session"}</h2></div><span>Items aggregate after 3 minutes</span></header>
+      {review.activities.length ? (
+        <div className="activity-review-list">
+          {review.activities.map((activity) => (
+            <ActivityReviewCard
+              key={activity.source.id}
+              activity={activity}
+              value={draft[activity.source.id] ?? { category: "", useNextTime: false }}
+              onChange={(value) => setDraft((current) => ({ ...current, [activity.source.id]: value }))}
+            />
+          ))}
+        </div>
+      ) : <div className="inline-empty">No activity reached three aggregate minutes. You can still mark this session reviewed.</div>}
+      <div className="short-activity-summary"><TimerReset size={16} /><span>Short activity</span><strong>{formatDuration(Math.round(review.shortActivitySecs))}</strong></div>
+      <footer className="session-review-footer">
+        <div>
+          {missingCategories ? <span>Choose a category for every activity.</span> : null}
+          {session.status === "active" ? <span>This session can be reviewed when it ends.</span> : null}
+          {result ? <strong>{result}</strong> : null}
+        </div>
+        <button className="button button--primary" disabled={!canSubmit} onClick={() => void submit()}>
+          <Check size={17} />
+          {saving ? "Saving..." : session.reviewStatus === "reviewed" ? "Save session changes" : "Mark session reviewed"}
+        </button>
+      </footer>
+    </section>
+  );
+}
+
+function ActivityReviewCard({ activity, value, onChange }: {
+  activity: ActivityAggregate;
+  value: { category: ActivityCategory | ""; useNextTime: boolean };
+  onChange: (value: { category: ActivityCategory | ""; useNextTime: boolean }) => void;
+}) {
+  const isLegacyChrome = activity.source.kind === "browser" || activity.source.executable?.toLowerCase() === "chrome.exe";
+  const sourceLabel = isLegacyChrome ? "Google Chrome" : activity.source.name;
+  const detail = isLegacyChrome ? "chrome.exe" : activity.source.executable;
+
+  return (
+    <article className={`activity-review-card category-${value.category || "unclassified"}`}>
       <div className="activity-review-card__identity">
         <span className="source-mark">APP</span>
         <div><strong title={sourceLabel}>{sourceLabel}</strong><span>{detail}</span></div>
       </div>
       <time>{formatDuration(Math.round(activity.durationSecs))}</time>
-      <select value={category} aria-label={`Classify ${sourceLabel}`} onChange={(event) => setCategory(event.target.value as ActivityCategory)}>
+      <select value={value.category} aria-label={`Classify ${sourceLabel}`} onChange={(event) => onChange({ ...value, category: event.target.value as ActivityCategory | "" })}>
+        <option value="" disabled>Choose category</option>
         {categories.map((value) => <option value={value} key={value}>{categoryLabels[value]}</option>)}
       </select>
-      <label className="compact-check"><input type="checkbox" checked={useNextTime} onChange={(event) => setUseNextTime(event.target.checked)} /> Use this next time</label>
-      <span />
-      <button className="button button--save-classification" title="Save this classification" disabled={saving} onClick={() => void save()}><Check size={15} /> {saving ? "Saving" : "Save"}</button>
+      <label className="compact-check"><input type="checkbox" checked={value.useNextTime} onChange={(event) => onChange({ ...value, useNextTime: event.target.checked })} /> Use this next time</label>
     </article>
+  );
+}
+
+function ReviewedSessionArchive({ sessions, selectedSessionId, openSession }: { sessions: ActivitySession[]; selectedSessionId: string | null; openSession: (sessionId: string) => Promise<void> }) {
+  return (
+    <section className="reviewed-session-archive">
+      <header><div><span className="eyebrow">History</span><h2>Reviewed sessions</h2></div><Archive size={18} /></header>
+      {sessions.length ? (
+        <div className="reviewed-session-archive__list">
+          {sessions.map((session) => (
+            <button key={session.id} className={selectedSessionId === session.id ? "is-active" : ""} onClick={() => void openSession(session.id)}>
+              <span><strong>{session.localDate}</strong><small>{formatDuration(Math.round(session.activeSecs))} · {session.status}</small></span>
+              <span>View</span>
+            </button>
+          ))}
+        </div>
+      ) : <div className="inline-empty">Reviewed sessions will appear here.</div>}
+    </section>
   );
 }
 
@@ -275,7 +350,7 @@ function PendingReviewQueue({ sessions, selectedSessionId, openSession }: { sess
         {sessions.map((session) => (
           <div key={session.id}>
             <div><strong>{session.localDate}</strong><span>{session.status} · {formatDuration(Math.round(session.activeSecs))}</span></div>
-            <button className="button button--quiet" disabled={selectedSessionId === session.id} onClick={() => void openSession(session.id)}>{selectedSessionId === session.id ? "Reviewing" : "Review session"}</button>
+            <button className="button button--quiet" onClick={() => void openSession(session.id)}>{selectedSessionId === session.id ? "Continue review" : "Review session"}</button>
           </div>
         ))}
       </div>
